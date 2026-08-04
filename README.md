@@ -46,11 +46,11 @@ the browser tab** — reopen the page and it reattaches to the scan in progress.
 Every address is stamped with a three-letter sigil for where it came from, coloured
 by provenance class:
 
-| Class | Meaning | Sigils |
-|---|---|---|
-| **Declared** (teal) | Published by the owner in a machine-readable record | `DNS` `RDP` `SEC` |
-| **Page** (violet) | Found in rendered web content | `MTO` `WEB` `OBF` |
-| **Elsewhere** (amber) | Documents and off-domain presences | `PDF` `EXT` |
+| Class                 | Meaning                                             | Sigils            |
+| --------------------- | --------------------------------------------------- | ----------------- |
+| **Declared** (teal)   | Published by the owner in a machine-readable record | `DNS` `RDP` `SEC` |
+| **Page** (violet)     | Found in rendered web content                       | `MTO` `WEB` `OBF` |
+| **Elsewhere** (amber) | Documents and off-domain presences                  | `PDF` `EXT`       |
 
 ---
 
@@ -106,14 +106,14 @@ port instead of scanning for a free one.
 All settings are environment variables with working defaults; see `.env.example` for
 the full annotated list. The ones that matter most in production:
 
-| Variable | Default | What it does |
-|---|---|---|
-| `DATA_DIR` | `data` | Scan log, saved results, checkpoints |
-| `MAX_CONCURRENT_SCANS` | `2` | Capped by Chromium memory, not the event loop |
-| `JOB_TTL_SECONDS` | `3600` | How long a finished scan stays in memory |
-| `MAX_PDF_SIZE_MB` | `150` | Skip PDFs larger than this |
-| `SKIP_NON_PUBLIC_SUBDOMAINS` | `false` | Trade coverage for a faster scan |
-| `SHUTDOWN_JOIN_SECONDS` | `30.0` | Grace period for scans to checkpoint on exit |
+| Variable                     | Default | What it does                                  |
+| ---------------------------- | ------- | --------------------------------------------- |
+| `DATA_DIR`                   | `data`  | Scan log, saved results, checkpoints          |
+| `MAX_CONCURRENT_SCANS`       | `2`     | Capped by Chromium memory, not the event loop |
+| `JOB_TTL_SECONDS`            | `3600`  | How long a finished scan stays in memory      |
+| `MAX_PDF_SIZE_MB`            | `150`   | Skip PDFs larger than this                    |
+| `SKIP_NON_PUBLIC_SUBDOMAINS` | `false` | Trade coverage for a faster scan              |
+| `SHUTDOWN_JOIN_SECONDS`      | `30.0`  | Grace period for scans to checkpoint on exit  |
 
 ---
 
@@ -167,8 +167,6 @@ the full annotated list. The ones that matter most in production:
 ├── data/                       # Scan log, results & checkpoints (gitignored)
 │   ├── scan_log.jsonl
 │   └── scans/<scan_id>/        # results.json + checkpoint.json
-│
-└── tests/                      # 192 pytest unit and integration tests
 ```
 
 The `src/` layer knows nothing about HTTP; `web/` is the only thing that imports

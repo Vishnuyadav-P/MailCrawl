@@ -1,0 +1,44 @@
+# Keep the build context small and secrets out of the image.
+
+# Virtual environments — the image installs its own
+.venv/
+venv/
+ENV/
+env/
+
+# Python bytecode and tool caches
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Scan history and checkpoints belong in a mounted volume, never baked in
+data/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# VCS, editors, agent tooling
+.git/
+.gitignore
+.github/
+.vscode/
+.idea/
+.claude/
+.agents/
+*.swp
+
+# Docs and local-only tooling
+README.md
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Tests are not needed at runtime
+tests/

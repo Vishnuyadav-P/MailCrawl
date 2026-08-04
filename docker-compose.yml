@@ -1,0 +1,38 @@
+services:
+  app:
+    build: .
+    image: MailCrawl:1.0.0
+    ports:
+      - "${HOST_PORT:-8000}:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATA_DIR: /data
+      # Each scan drives its own Chromium, so the browser — not the event loop —
+      # is what caps this. Raise it only alongside the memory limit below.
+      MAX_CONCURRENT_SCANS: "${MAX_CONCURRENT_SCANS:-2}"
+    volumes:
+      # Scan log, saved results and checkpoints. Without this, an interrupted scan
+      # is unresumable after a container restart.
+      - scan-data:/data
+    restart: unless-stopped
+    # Chromium needs more than Docker's default 64MB of shared memory or it will
+    # crash on content-heavy pages.
+    shm_size: 1gb
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    # A scan checkpoints itself on SIGTERM; give it room to finish rather than
+    # losing the crawl to Docker's 10s default.
+    stop_grace_period: 45s
+    deploy:
+      resources:
+        limits:
+          memory: 3g
+
+volumes:
+  scan-data:

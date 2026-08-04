@@ -1,0 +1,77 @@
+/* ==========================================================================
+   Design tokens
+   --------------------------------------------------------------------------
+   A light, cool, editorial-technical system. The palette is deliberately not
+   the warm-cream/terracotta or black/acid-green pairing that recon tooling
+   defaults to: a light ground reads far better across long result tables, and
+   violet as the primary avoids the reflexive security-tool green.
+
+   Colour carries meaning here. The three provenance hues encode HOW an address
+   was obtained, which is the one thing this tool knows that a generic scraper
+   does not.
+   ========================================================================== */
+
+:root {
+  /* Ground and ink */
+  --ink:        #0F1523;
+  --ink-soft:   #26304a;
+  --paper:      #EDF0F5;
+  --surface:    #FFFFFF;
+  --surface-2:  #F7F9FC;
+  --rule:       #D6DCE7;
+  --rule-soft:  #E6EAF1;
+  --muted:      #67718A;
+
+  /* Provenance classes — the semantic core of the interface */
+  --violet:     #4A3AFF;   /* Page       — found in rendered web content     */
+  --teal:       #0E9E86;   /* Declared   — published in a machine record     */
+  --amber:      #C8792A;   /* Elsewhere  — documents and off-domain presence */
+
+  --violet-wash: rgba(74, 58, 255, 0.08);
+  --teal-wash:   rgba(14, 158, 134, 0.09);
+  --amber-wash:  rgba(200, 121, 42, 0.10);
+
+  --danger:      #C4344B;
+  --danger-wash: rgba(196, 52, 75, 0.09);
+
+  /* Type */
+  --font-display: "Bricolage Grotesque", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-body:    "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono:    "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --step--2: 0.6875rem;   /* 11px — sigils, micro-labels */
+  --step--1: 0.8125rem;   /* 13px — table data, captions */
+  --step-0:  0.9375rem;   /* 15px — body                 */
+  --step-1:  1.125rem;    /* 18px — section headers      */
+  --step-2:  1.5rem;      /* 24px — stat values          */
+  --step-3:  2.25rem;     /* 36px — masthead             */
+
+  /* Space */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 3rem;
+
+  /* Geometry — restrained; the rail is the only place with visual weight */
+  --radius:    6px;
+  --radius-sm: 3px;
+  --rail-w:    44px;
+
+  --shadow-lift: 0 1px 2px rgba(15, 21, 35, 0.06),
+                 0 4px 12px rgba(15, 21, 35, 0.05);
+
+  /* Motion */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --dur-fast: 120ms;
+  --dur:      220ms;
+  --dur-slow: 420ms;
+}
+
+/* Provenance class -> colour. One place, used by the rail and the ledger. */
+[data-prov="declared"]  { --prov: var(--teal);   --prov-wash: var(--teal-wash);   }
+[data-prov="page"]      { --prov: var(--violet); --prov-wash: var(--violet-wash); }
+[data-prov="elsewhere"] { --prov: var(--amber);  --prov-wash: var(--amber-wash);  }
+[data-prov="unknown"]   { --prov: var(--muted);  --prov-wash: rgba(103,113,138,.10); }

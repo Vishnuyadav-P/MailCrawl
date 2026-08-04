@@ -1,0 +1,273 @@
+/* ==========================================================================
+   Stat tiles, filters, results table, exports, history
+   Everything here stays deliberately quiet — the rail carries the weight.
+   ========================================================================== */
+
+/* ---------- Stat tiles ---------- */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.tile {
+  background: var(--surface);
+  padding: var(--sp-3) var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+  transition: background var(--dur-fast) var(--ease);
+}
+.tile:hover { background: var(--surface-2); }
+
+.tile__label {
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tile__value {
+  font-family: var(--font-mono);
+  font-size: var(--step-2);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+.tile__value small { font-size: var(--step--1); color: var(--muted); font-weight: 400; }
+
+.tile[data-accent="violet"] .tile__value { color: var(--violet); }
+.tile[data-accent="teal"]   .tile__value { color: var(--teal); }
+.tile[data-accent="amber"]  .tile__value { color: var(--amber); }
+
+/* ---------- Sections that hold tables ---------- */
+
+.summary, .ledger, .history {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: var(--sp-4);
+}
+
+/* ---------- Filters ---------- */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: center;
+  padding-bottom: var(--sp-3);
+  margin-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.filters__search { flex: 1 1 18rem; min-width: 0; }
+
+.filters__set {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: center;
+}
+.filters__set select { width: auto; min-width: 9rem; }
+
+.filters__conf {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--step--2);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.filters__conf input[type="range"] { width: 6rem; }
+.filters__conf output {
+  font-family: var(--font-mono);
+  color: var(--violet);
+  font-weight: 600;
+  min-width: 2ch;
+  text-align: right;
+}
+
+/* ---------- Tables ---------- */
+
+.tablewrap {
+  overflow-x: auto;
+  border: 1px solid var(--rule-soft);
+  border-radius: var(--radius-sm);
+}
+
+.ledger__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--step--1);
+}
+
+/* Thirteen columns will not fit narrow viewports. Give the results table a floor
+   so the wrapper scrolls horizontally instead of squeezing addresses until they
+   wrap mid-word. */
+.ledger .ledger__table { min-width: 1080px; }
+
+.ledger__table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  padding: var(--sp-3);
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+}
+
+.ledger__table td {
+  padding: var(--sp-3);
+  border-bottom: 1px solid var(--rule-soft);
+  vertical-align: top;
+  max-width: 22rem;
+}
+
+.ledger__table tbody tr { transition: background var(--dur-fast) var(--ease); }
+.ledger__table tbody tr:hover { background: var(--surface-2); }
+.ledger__table tbody tr:last-child td { border-bottom: 0; }
+
+.col-num { text-align: right; }
+td.col-num { text-align: right; font-variant-numeric: tabular-nums; }
+.col-sigil { width: 3.5rem; }
+
+/* An address is a single token; breaking it mid-word makes it unreadable and
+   uncopyable. It stays on one line and the table scrolls instead. */
+.cell-mono {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  white-space: nowrap;
+}
+
+.cell-url {
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  color: var(--muted);
+  text-decoration: none;
+  display: inline-block;
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+.cell-url:hover { color: var(--violet); text-decoration: underline; }
+
+.cell-empty { color: var(--muted); opacity: 0.6; }
+
+/* Status pills — colour reflects the verdict, not decoration */
+.pill {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  padding: 1px var(--sp-2);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  background: rgba(103,113,138,.10);
+  color: var(--muted);
+}
+.pill[data-tone="good"] { background: var(--teal-wash);   color: var(--teal); }
+.pill[data-tone="warn"] { background: var(--amber-wash);  color: #8a5410; }
+.pill[data-tone="bad"]  { background: var(--danger-wash); color: var(--danger); }
+
+/* Confidence as a hairline meter behind the number */
+.conf {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.conf__bar {
+  width: 34px; height: 3px;
+  background: var(--rule);
+  border-radius: 2px;
+  overflow: hidden;
+  flex: none;
+}
+.conf__fill { display: block; height: 100%; background: var(--violet); }
+
+/* ---------- Empty states ---------- */
+
+.ledger__empty, .history__empty {
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  color: var(--muted);
+  text-align: center;
+  padding: var(--sp-5) 0;
+}
+
+/* ---------- Pager, exports ---------- */
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+}
+.pager__at {
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.exports {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--rule-soft);
+}
+.exports__note {
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  color: var(--muted);
+}
+
+/* ---------- Errors disclosure ---------- */
+
+.errors { margin-top: var(--sp-4); }
+.errors summary {
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  color: var(--muted);
+  cursor: pointer;
+  padding: var(--sp-2) 0;
+}
+.errors summary:hover { color: var(--ink); }
+.errors[open] summary { margin-bottom: var(--sp-3); }
+
+/* ---------- History ---------- */
+
+.history__actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+
+.history tbody tr[data-resumable="true"] { background: var(--amber-wash); }
+.history tbody tr[data-resumable="true"]:hover { background: color-mix(in srgb, var(--amber) 16%, var(--surface)); }
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1400px) { .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 900px)  { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 560px)  { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

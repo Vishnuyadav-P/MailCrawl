@@ -1,0 +1,51 @@
+[project]
+name = "domain-email-intelligence"
+version = "1.0.0"
+description = "Crawls public domain pages to discover, validate and export published business contact addresses."
+requires-python = ">=3.11"
+readme = "README.md"
+
+# Runtime dependencies are declared in requirements.txt rather than here. This is a
+# deployed application, not a distributable library: the container copies the source
+# in and runs it, so requirements.txt stays the single source of truth and gives the
+# Docker build a cacheable layer. This file configures tooling only.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "strict"
+addopts = "-q --strict-markers"
+filterwarnings = [
+    # Starlette's own TestClient warns about its own httpx import. Not our call to make,
+    # and it fires at collection time on every run.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [".venv", "venv", "data", "web/static"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle
+    "F",    # pyflakes — unused imports and names
+    "I",    # import ordering
+    "B",    # bugbear — real bug patterns
+    "C4",   # comprehensions
+]
+# UP (pyupgrade) is deliberately not selected. Its typing rules would rewrite every
+# `List[x]`/`Optional[x]` in the codebase to `list[x]`/`x | None` — ~300 edits that
+# change no behaviour. Worth doing as its own pass, not as a side effect of linting.
+ignore = [
+    "E501",  # line length is handled by the formatter, not enforced as an error
+    "B008",  # FastAPI's Depends()/Query() defaults are the documented idiom
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Package __init__ files re-export deliberately.
+"__init__.py" = ["F401"]
+# Tests reach into private members to pin down threading and checkpoint internals,
+# and build fixture defaults with dict(...) kwargs, which reads better than a literal
+# when the keys are then overridden.
+"tests/*" = ["B011", "SLF001", "C408"]

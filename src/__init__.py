@@ -1,0 +1,3 @@
+"""
+MailCrawl package.
+"""

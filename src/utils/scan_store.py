@@ -67,6 +67,13 @@ def new_scan_id(search_name: str, when: Optional[datetime] = None) -> str:
     return f"{stamp}__{slugify(search_name)}"
 
 
+def get_scan_log_filename(scan_id: str, target_domain: str) -> str:
+    """Builds a log filename containing target domain and timestamp."""
+    slug = slugify(target_domain)
+    stamp = scan_id.split("__")[0] if "__" in scan_id else datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    return f"scan_{slug}_{stamp}.log"
+
+
 def _write_json_atomic(path: Path, payload: Any) -> None:
     """Writes JSON via a temporary file so an interrupted write cannot corrupt the target."""
     path.parent.mkdir(parents=True, exist_ok=True)

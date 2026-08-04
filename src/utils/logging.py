@@ -3,6 +3,7 @@ Structured logging module.
 """
 
 import logging
+from pathlib import Path
 import sys
 
 
@@ -22,3 +23,33 @@ def setup_logger(name: str = "domain_email_intelligence") -> logging.Logger:
 
 
 logger = setup_logger()
+
+
+def create_scan_file_logger(scan_id: str, target_domain: str) -> tuple[logging.Logger, Path]:
+    """Creates a per-scan file logger with domain and timestamp in its filename."""
+    from datetime import datetime
+    from pathlib import Path
+    from src.utils.scan_store import scan_dir, get_scan_log_filename
+
+    log_file_name = get_scan_log_filename(scan_id, target_domain)
+    log_file_path = scan_dir(scan_id) / log_file_name
+
+    scan_logger = logging.getLogger(f"scan.{scan_id}")
+    scan_logger.setLevel(logging.INFO)
+
+    resolved_path = str(log_file_path.resolve())
+    has_handler = any(
+        isinstance(h, logging.FileHandler) and getattr(h, "baseFilename", "") == resolved_path
+        for h in scan_logger.handlers
+    )
+
+    if not has_handler:
+        handler = logging.FileHandler(log_file_path, encoding="utf-8")
+        formatter = logging.Formatter(
+            fmt="[%(asctime)s] %(levelname)s: %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+        handler.setFormatter(formatter)
+        scan_logger.addHandler(handler)
+
+    return scan_logger, log_file_path

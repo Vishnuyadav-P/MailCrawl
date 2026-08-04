@@ -62,7 +62,7 @@ const API = (() => {
 
     snapshot: (scanId) => request(`/api/scans/${encodeURIComponent(scanId)}`),
 
-    results: (scanId, filters = {}, offset = 0, limit = 200) => {
+    results: (scanId, filters = {}, offset = 0, limit = 10) => {
       const params = filterParams(filters);
       params.set('offset', String(offset));
       params.set('limit', String(limit));

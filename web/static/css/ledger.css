@@ -102,6 +102,8 @@
 /* ---------- Tables ---------- */
 
 .tablewrap {
+  max-height: 420px;
+  overflow-y: auto;
   overflow-x: auto;
   border: 1px solid var(--rule-soft);
   border-radius: var(--radius-sm);
@@ -258,6 +260,10 @@ td.col-num { text-align: right; font-variant-numeric: tabular-nums; }
 }
 .errors summary:hover { color: var(--ink); }
 .errors[open] summary { margin-bottom: var(--sp-3); }
+.errors .tablewrap {
+  max-height: 320px;
+  overflow-y: auto;
+}
 
 /* ---------- History ---------- */
 

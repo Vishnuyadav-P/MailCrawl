@@ -128,6 +128,14 @@ const Main = (() => {
 
   /* ---------- Stream handlers ---------- */
 
+  function updateLiveExportLinks() {
+    if (!State.scanId) return;
+    const csvBtn = $('live-export-csv');
+    const xlsxBtn = $('live-export-xlsx');
+    if (csvBtn) csvBtn.href = API.exportUrl(State.scanId, 'csv');
+    if (xlsxBtn) xlsxBtn.href = API.exportUrl(State.scanId, 'xlsx');
+  }
+
   const handlers = {
     onSnapshot(snap) {
       // A snapshot is authoritative: it replaces client state wholesale, which
@@ -143,12 +151,13 @@ const Main = (() => {
       applyProgress(snap.progress);
       applyPhase(snap.phase);
       setStatus(snap.status);
+      updateLiveExportLinks();
 
       if (snap.stats) Ledger.renderTiles(snap.stats);
 
       if (TERMINAL_STATUSES.includes(snap.status)) {
         applyTerminalPresentation(snap.status);
-        if (snap.result_count != null) Ledger.load();
+        Ledger.load();
       }
     },
 
@@ -160,6 +169,7 @@ const Main = (() => {
     onEmails(payload) {
       const added = State.addEmails(payload.batch || []);
       Rail.append(added);
+      updateLiveExportLinks();
     },
 
     onPhase(payload) {
@@ -183,6 +193,7 @@ const Main = (() => {
       } else {
         const reason = (payload.error && payload.error.message) || 'Scan stopped.';
         toast(`${STATUS_LABEL[status] || status}: ${reason} Resume it from the history below.`, 'error', 8000);
+        await Ledger.load();
       }
 
       History.refresh();
@@ -211,6 +222,7 @@ const Main = (() => {
 
     show($('frontier'), true);
     show($('rail-section'), true);
+    updateLiveExportLinks();
 
     if (arm) {
       const frontier = $('frontier');

@@ -63,7 +63,7 @@ KEEPALIVE_SECONDS: float = _float("KEEPALIVE_SECONDS", 15.0)
 SSE_RETRY_MS: int = _int("SSE_RETRY_MS", 2000)
 
 # Results paging.
-DEFAULT_PAGE_SIZE: int = _int("DEFAULT_PAGE_SIZE", 200)
+DEFAULT_PAGE_SIZE: int = _int("DEFAULT_PAGE_SIZE", 10)
 MAX_PAGE_SIZE: int = _int("MAX_PAGE_SIZE", 2000)
 
 # Grace period for in-flight scans to checkpoint themselves on server shutdown.

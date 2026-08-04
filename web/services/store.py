@@ -101,7 +101,7 @@ def read_history() -> Dict[str, Any]:
         rows.append({
             **record.model_dump(),
             "resumable": resumable,
-            "has_results": results_exist(record.scan_id),
+            "has_results": results_exist(record.scan_id) or checkpoint_exists(record.scan_id),
         })
 
     return {

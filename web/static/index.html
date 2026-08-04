@@ -323,10 +323,16 @@
         aria-label="Addresses as they are found"
       >
         <div class="section__head">
-          <h2 class="section__title">Live</h2>
-          <p class="section__note" id="rail-note">
-            Addresses appear as they are found.
-          </p>
+          <div>
+            <h2 class="section__title">Live</h2>
+            <p class="section__note" id="rail-note">
+              Addresses appear as they are found.
+            </p>
+          </div>
+          <div class="exports exports--live" id="live-exports">
+            <a class="btn btn--ghost btn--sm" id="live-export-csv" download>Download CSV</a>
+            <a class="btn btn--ghost btn--sm" id="live-export-xlsx" download>Download Excel</a>
+          </div>
         </div>
 
         <ol

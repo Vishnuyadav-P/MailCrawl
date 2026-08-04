@@ -16,7 +16,7 @@ const State = {
   config: null,
   facets: {},
   filters: { q: '', email_type: '', validation_status: '', domain_match: '', min_confidence: 0 },
-  page: { offset: 0, limit: 200, total: 0, filteredTotal: 0 },
+  page: { offset: 0, limit: 10, total: 0, filteredTotal: 0 },
 
   reset() {
     this.liveEmails.clear();
@@ -24,6 +24,7 @@ const State = {
     this.stats = null;
     this.phase = null;
     this.page.offset = 0;
+    this.page.limit = 10;
   },
 
   addEmails(rows) {

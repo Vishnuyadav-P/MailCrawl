@@ -19,7 +19,7 @@ from typing import Optional
 from src.crawler.crawler import AsyncCrawler
 from src.models.scan import ScanConfig, ScanRecord
 from src.processing.deduplicator import deduplicate_and_process_emails
-from src.utils.logging import logger
+from src.utils.logging import logger, create_scan_file_logger
 from src.utils.urls import is_same_registered_domain
 from web.jobs.adapters import EmailBatchAdapter, ProgressAdapter
 from web.jobs.registry import JobState, ScanCancelled, registry
@@ -28,7 +28,7 @@ from web.services import store
 
 def _log(job: JobState, status: str, message: str, pages: int = 0,
          sites: int = 0, emails: int = 0) -> None:
-    """Appends a lifecycle row to the shared scan log."""
+    """Appends a lifecycle row to the shared scan log and writes to per-scan log file."""
     store.append_scan_log(ScanRecord(
         scan_id=job.scan_id,
         search_name=job.search_name,
@@ -43,6 +43,8 @@ def _log(job: JobState, status: str, message: str, pages: int = 0,
         resumed_from=job.resumed_from,
         message=message,
     ))
+    scan_logger, log_path = create_scan_file_logger(job.scan_id, job.target_domain)
+    scan_logger.info(f"[{status.upper()}] {message} | pages: {pages}, sites: {sites}, emails: {emails} (Log: {log_path})")
 
 
 def _set_phase(job: JobState, phase: str, message: str) -> None:
@@ -71,6 +73,7 @@ def run_scan(job: JobState) -> None:
         scan_id=job.scan_id,
         resume=job.resume,
     )
+    job.crawler = crawler
 
     try:
         _set_phase(job, "crawl", "Crawling")

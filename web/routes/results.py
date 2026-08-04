@@ -15,8 +15,9 @@ from fastapi import APIRouter, HTTPException, Query, Response, status
 
 from src.export.csv_exporter import generate_csv_bytes
 from src.export.excel_exporter import generate_excel_bytes
-from src.models.email import CanonicalEmailResult
+from src.models.email import CanonicalEmailResult, EmailOccurrence
 from src.models.scan import ScanConfig, ScanError, ScanStats
+from src.processing.deduplicator import deduplicate_and_process_emails
 from web import settings
 from web.jobs.registry import registry
 from web.services import store
@@ -31,41 +32,63 @@ async def _load_scan_payload(
     scan_id: str,
 ) -> Tuple[List[CanonicalEmailResult], Optional[ScanStats], Optional[ScanConfig], List[ScanError], str]:
     """
-    Resolves a scan's results from memory, falling back to disk.
-
-    Returns (results, stats, config, errors, target_domain).
+    Resolves a scan's results from memory (finished or in-progress), falling back to disk
+    (saved results or checkpoint).
     """
     job = registry.get(scan_id)
 
-    if job and job.results is not None:
-        return job.results, job.stats, job.config, job.scan_errors, job.target_domain
+    if job:
+        if job.results is not None:
+            return job.results, job.stats, job.config, job.scan_errors, job.target_domain
 
-    if job and job.is_active():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Scan '{scan_id}' has not produced results yet (status: {job.status}).",
+        # Dynamically process live occurrences for in-flight scan
+        raw_occs = getattr(job.crawler, "raw_occurrences", []) if job.crawler else []
+        results = deduplicate_and_process_emails(
+            occurrences=raw_occs,
+            registered_domain=job.config.target_domain,
+            only_target_domain=job.config.only_target_domain,
         )
+        return results, job.stats or ScanStats(domain=job.target_domain), job.config, job.scan_errors, job.target_domain
 
     payload = await store.aload_results(scan_id)
-    if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No saved results found for '{scan_id}'.",
-        )
+    if payload:
+        try:
+            results = [CanonicalEmailResult.model_validate(item) for item in payload.get("results", [])]
+            stats = ScanStats.model_validate(payload["stats"]) if payload.get("stats") else None
+            config = ScanConfig.model_validate(payload["config"]) if payload.get("config") else None
+            target_domain = config.target_domain if config else (stats.domain if stats else scan_id)
+            return results, stats, config, [], target_domain
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"Saved results for '{scan_id}' could not be read: {exc}",
+            ) from exc
 
-    try:
-        results = [CanonicalEmailResult.model_validate(item) for item in payload.get("results", [])]
-        stats = ScanStats.model_validate(payload["stats"]) if payload.get("stats") else None
-        config = ScanConfig.model_validate(payload["config"]) if payload.get("config") else None
-    except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=f"Saved results for '{scan_id}' could not be read: {exc}",
-        ) from exc
+    checkpoint = await store.aload_checkpoint(scan_id)
+    if checkpoint:
+        try:
+            config = ScanConfig.model_validate(checkpoint["config"]) if checkpoint.get("config") else None
+            stats = ScanStats.model_validate(checkpoint["stats"]) if checkpoint.get("stats") else None
+            target_domain = config.target_domain if config else (stats.domain if stats else scan_id)
+            raw_items = checkpoint.get("raw_occurrences", [])
+            raw_occs = [EmailOccurrence.model_validate(item) for item in raw_items]
+            errors = [ScanError.model_validate(item) for item in checkpoint.get("errors", [])]
+            results = deduplicate_and_process_emails(
+                occurrences=raw_occs,
+                registered_domain=target_domain,
+                only_target_domain=config.only_target_domain if config else True,
+            )
+            return results, stats, config, errors, target_domain
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"Checkpoint for '{scan_id}' could not be read: {exc}",
+            ) from exc
 
-    target_domain = config.target_domain if config else (stats.domain if stats else scan_id)
-    # save_results does not persist scan errors, so a disk-loaded scan has none.
-    return results, stats, config, [], target_domain
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"No saved results or checkpoint found for '{scan_id}'.",
+    )
 
 
 def _spec(q, email_type, validation_status, domain_match, min_confidence) -> FilterSpec:

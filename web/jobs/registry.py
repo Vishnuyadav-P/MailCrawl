@@ -71,6 +71,7 @@ class JobState:
     stats: Optional[ScanStats] = None
     scan_errors: List[ScanError] = field(default_factory=list)
     results: Optional[List[CanonicalEmailResult]] = None
+    crawler: Any = None
 
     _seq: int = 0
     _buffer: Deque[Tuple[int, str, str]] = field(

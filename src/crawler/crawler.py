@@ -23,7 +23,7 @@ from src.extraction.pdf_extractor import extract_emails_from_pdf_bytes
 from src.models.email import EmailOccurrence
 from src.models.scan import ScanConfig, ScanError, ScanProgress, ScanStats
 from src.utils.config import Config
-from src.utils.logging import logger
+from src.utils.logging import logger, create_scan_file_logger
 from src.utils.scan_store import load_checkpoint, save_checkpoint
 from src.utils.urls import get_url_priority, normalize_domain_input
 from src.validation.domain_validator import validate_url_ssrf
@@ -51,6 +51,12 @@ class AsyncCrawler:
         self.resume = resume and scan_id is not None
         self.resumed_from_pages = 0
 
+        self.scan_logger = None
+        self.scan_log_path = None
+        if self.scan_id:
+            self.scan_logger, self.scan_log_path = create_scan_file_logger(self.scan_id, self.registered_domain)
+            self.scan_log(f"Per-scan log created at {self.scan_log_path}")
+
         self.visited_urls: Set[str] = set()
         self.queued_urls: Set[str] = set()
 
@@ -70,21 +76,16 @@ class AsyncCrawler:
         self._completed_phases: Set[str] = set()
         self._pages_since_checkpoint = 0
 
-        # Crawl frontier, a binary heap of (-priority, depth, url). Priority is negated
-        # because heapq is a min-heap and the highest-scoring URL must come off first.
-        # A heap is what makes an unbounded crawl viable: links surface continuously, so
-        # a sorted list would have to be re-sorted after every batch — O(n log n) per
-        # batch over a frontier that grows to the size of the site. Push and pop here
-        # are O(log n) and the frontier is never re-scanned.
-        #
-        # The batch currently being fetched has already been popped off the heap, so a
-        # checkpoint must put it back or those URLs are lost on resume.
         self._inflight: List[tuple[int, int, str]] = []
         self._queue: List[tuple[int, int, str]] = []
 
         self.stats = ScanStats(domain=self.registered_domain)
         self.robots_checker = RobotsChecker(respect_rules=config.respect_robots)
         self.playwright_fetcher: Optional[PlaywrightFetcher] = None
+
+    def scan_log(self, message: str, level: str = "info") -> None:
+        if self.scan_logger:
+            getattr(self.scan_logger, level, self.scan_logger.info)(message)
 
     async def crawl(self) -> tuple[List[EmailOccurrence], ScanStats, List[ScanError]]:
         """Executes the complete crawl job."""
@@ -334,9 +335,14 @@ class AsyncCrawler:
         if not pdf_urls:
             return
 
-        pdf_total = len(pdf_urls)
+        # Exclude PDFs already processed in prior runs/checkpoints
+        unprocessed_pdf_urls = [u for u in pdf_urls if u not in self.visited_urls]
+        if not unprocessed_pdf_urls:
+            return
+
+        pdf_total = len(unprocessed_pdf_urls)
         tasks = []
-        for idx, pdf_url in enumerate(pdf_urls, start=1):
+        for idx, pdf_url in enumerate(unprocessed_pdf_urls, start=1):
             async def run_pdf(pdf_url: str, idx: int, pdf_total: int) -> None:
                 async with semaphore:
                     self._notify_progress(
@@ -351,10 +357,14 @@ class AsyncCrawler:
                         total=pdf_total,
                         semaphore=semaphore,
                     )
+                    self.visited_urls.add(pdf_url)
+                    self._pages_since_checkpoint += 1
+                    self._maybe_checkpoint(self._queue)
 
             tasks.append(asyncio.create_task(run_pdf(pdf_url, idx, pdf_total)))
 
         await asyncio.gather(*tasks)
+        self._write_checkpoint(self._queue)
 
     async def _fetch_and_extract_pdf(
         self,
@@ -651,7 +661,8 @@ class AsyncCrawler:
         pdf_processed: int = 0,
         pdf_total: int = 0
     ) -> None:
-        """Triggers progress callback if set."""
+        """Triggers progress callback if set and logs to per-scan log."""
+        self.scan_log(f"[{msg}] URL: {current_url} | Scanned: {self.stats.pages_scanned}/{self.stats.pages_discovered} | Emails: {len(self.unique_emails)}")
         if self.on_progress:
             self.on_progress(ScanProgress(
                 status_message=msg,

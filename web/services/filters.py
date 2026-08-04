@@ -36,12 +36,19 @@ class FilterSpec:
             value = value.strip()
             return None if value in ("", "All") else value
 
+        if hasattr(min_confidence, "default"):
+            min_confidence = min_confidence.default
+        try:
+            conf_val = int(min_confidence)
+        except (ValueError, TypeError):
+            conf_val = 0
+
         return cls(
             q=clean(q),
             email_type=clean(email_type),
             validation_status=clean(validation_status),
             domain_match=clean(domain_match),
-            min_confidence=max(0, min(100, min_confidence or 0)),
+            min_confidence=max(0, min(100, conf_val)),
         )
 
     @property

@@ -40,6 +40,7 @@ class PlaywrightFetcher:
             logger.warning(f"Playwright SSRF check blocked '{url}': {reason}")
             return None
 
+        context = None
         page = None
         try:
             context = await self._browser.new_context(
@@ -61,17 +62,22 @@ class PlaywrightFetcher:
             await page.wait_for_timeout(1000)
 
             content = await page.content()
-            await context.close()
             return content
 
         except Exception as exc:
             logger.warning(f"Playwright failed to render '{url}': {exc}")
+            return None
+        finally:
             if page:
                 try:
                     await page.close()
                 except Exception:
                     pass
-            return None
+            if context:
+                try:
+                    await context.close()
+                except Exception:
+                    pass
 
     async def stop(self):
         """Closes browser and stops Playwright."""

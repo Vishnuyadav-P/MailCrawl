@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 
 
-def setup_logger(name: str = "domain_email_intelligence") -> logging.Logger:
+def setup_logger(name: str = "MailCrawl") -> logging.Logger:
     """Configures a structured console logger."""
     logger = logging.getLogger(name)
     if not logger.handlers:

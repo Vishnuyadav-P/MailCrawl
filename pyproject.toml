@@ -1,5 +1,5 @@
 [project]
-name = "domain-email-intelligence"
+name = "mailcrawl"
 version = "1.0.0"
 description = "Crawls public domain pages to discover, validate and export published business contact addresses."
 requires-python = ">=3.11"

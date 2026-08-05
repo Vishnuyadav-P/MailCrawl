@@ -18,7 +18,7 @@ class Config:
 
     # Request options
     DEFAULT_USER_AGENT: str = (
-        "DomainEmailIntelligenceBot/1.0 (+https://github.com/domain-email-intelligence)"
+        "MailCrawlBot/1.0 (+https://github.com/Vishnuyadav-P/MailCrawl)"
     )
     MAX_RESPONSE_SIZE_BYTES: int = int(
         os.getenv("MAX_RESPONSE_SIZE_MB", "25")

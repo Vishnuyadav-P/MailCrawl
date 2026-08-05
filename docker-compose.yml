@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    image: MailCrawl:1.0.0
+    image: mailcrawl
     ports:
       - "${HOST_PORT:-8000}:8000"
     env_file:

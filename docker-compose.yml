@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
     # Chromium needs more than Docker's default 64MB of shared memory or it will
     # crash on content-heavy pages.
-    shm_size: 1gb
+    shm_size: 2gb
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/health"]
       interval: 30s
@@ -32,8 +32,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 3g
-          cpus: '2.0'
+          memory: 6g
+          cpus: "2.0"
     logging:
       driver: json-file
       options:

@@ -43,7 +43,8 @@ async def _load_scan_payload(
 
         # Dynamically process live occurrences for in-flight scan
         raw_occs = getattr(job.crawler, "raw_occurrences", []) if job.crawler else []
-        results = deduplicate_and_process_emails(
+        results = await asyncio.to_thread(
+            deduplicate_and_process_emails,
             occurrences=raw_occs,
             registered_domain=job.config.target_domain,
             only_target_domain=job.config.only_target_domain,
@@ -73,7 +74,8 @@ async def _load_scan_payload(
             raw_items = checkpoint.get("raw_occurrences", [])
             raw_occs = [EmailOccurrence.model_validate(item) for item in raw_items]
             errors = [ScanError.model_validate(item) for item in checkpoint.get("errors", [])]
-            results = deduplicate_and_process_emails(
+            results = await asyncio.to_thread(
+                deduplicate_and_process_emails,
                 occurrences=raw_occs,
                 registered_domain=target_domain,
                 only_target_domain=config.only_target_domain if config else True,

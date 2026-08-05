@@ -3,6 +3,7 @@ Playwright headless Chromium fetcher for JavaScript-rendered web pages.
 """
 
 from typing import Optional
+import asyncio
 
 from src.utils.config import Config
 from src.utils.logging import logger
@@ -35,7 +36,7 @@ class PlaywrightFetcher:
         if not self._browser:
             return None
 
-        is_safe, reason = validate_url_ssrf(url)
+        is_safe, reason = await asyncio.to_thread(validate_url_ssrf, url)
         if not is_safe:
             logger.warning(f"Playwright SSRF check blocked '{url}': {reason}")
             return None

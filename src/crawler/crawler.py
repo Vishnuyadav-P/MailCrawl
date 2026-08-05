@@ -71,6 +71,7 @@ class AsyncCrawler:
         self.pdf_urls_to_process: Set[str] = set()
         # Compact event graph persisted with the scan; URLs are nodes, not a hard crawl limit.
         self.crawl_graph: Dict[str, Dict] = {"nodes": {}, "edges": []}
+        self._graph_edge_set: Set[tuple] = set()
 
         # Restored from a checkpoint so a resumed scan does not redo finished phases
         self._completed_phases: Set[str] = set()
@@ -120,7 +121,7 @@ class AsyncCrawler:
                 semaphore = asyncio.Semaphore(self.config.concurrent_requests)
 
                 # 5. Main crawl loop
-                while queue:
+                while queue and (self.config.max_pages <= 0 or self.stats.pages_scanned < self.config.max_pages):
                     # Take the highest-priority URLs the concurrency limit allows.
                     # Links found while fetching are pushed straight back onto the
                     # heap, so a newly discovered /contact page outranks the rest of
@@ -216,7 +217,7 @@ class AsyncCrawler:
             return
 
         # Check SSRF
-        is_safe, ssrf_reason = validate_url_ssrf(url)
+        is_safe, ssrf_reason = await asyncio.to_thread(validate_url_ssrf, url)
         if not is_safe:
             self._graph_node(url, "page", "blocked")
             self.errors.append(ScanError(url=url, error_type="SSRF Blocked", message=ssrf_reason))
@@ -321,9 +322,10 @@ class AsyncCrawler:
         node.update({"type": kind, "status": status, **extra})
 
     def _graph_edge(self, source: str, target: str, relation: str) -> None:
-        edge = {"source": source, "target": target, "relation": relation}
-        if edge not in self.crawl_graph["edges"]:
-            self.crawl_graph["edges"].append(edge)
+        key = (source, target, relation)
+        if key not in self._graph_edge_set:
+            self._graph_edge_set.add(key)
+            self.crawl_graph["edges"].append({"source": source, "target": target, "relation": relation})
 
     async def _process_pdf_urls(
         self,
@@ -375,7 +377,7 @@ class AsyncCrawler:
         semaphore: Optional[asyncio.Semaphore] = None,
     ) -> None:
         """Downloads PDF file and extracts emails."""
-        is_safe, reason = validate_url_ssrf(pdf_url)
+        is_safe, reason = await asyncio.to_thread(validate_url_ssrf, pdf_url)
         if not is_safe:
             self.errors.append(ScanError(url=pdf_url, error_type="SSRF Blocked", message=reason))
             return
@@ -580,7 +582,14 @@ class AsyncCrawler:
         if not self.scan_id or self.config.checkpoint_every_pages <= 0:
             return
 
-        save_checkpoint(self.scan_id, self._checkpoint_state(queue))
+        state = self._checkpoint_state(queue)
+        try:
+            # save_checkpoint does os.fsync() which blocks; run on a thread
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                pool.submit(save_checkpoint, self.scan_id, state).result(timeout=30)
+        except Exception as exc:
+            logger.warning(f"Checkpoint write failed: {exc}")
         self._pages_since_checkpoint = 0
 
     def _maybe_checkpoint(self, queue: List[tuple[int, int, str]]) -> None:

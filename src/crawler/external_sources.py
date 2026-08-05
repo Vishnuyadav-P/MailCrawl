@@ -213,13 +213,15 @@ async def scan_external_sources(
     all_occurrences: List[EmailOccurrence] = []
     all_errors: List[ScanError] = []
 
-    for idx, url in enumerate(urls, start=1):
+    async def _run_one(idx: int, url: str) -> Tuple[List[EmailOccurrence], Optional[ScanError]]:
         if on_progress:
             on_progress(idx, len(urls), url)
+        return await _scan_one_source(url, client, semaphore, registered_domain, timeout)
 
-        occurrences, error = await _scan_one_source(
-            url, client, semaphore, registered_domain, timeout
-        )
+    tasks = [_run_one(idx, url) for idx, url in enumerate(urls, start=1)]
+    results = await asyncio.gather(*tasks)
+
+    for occurrences, error in results:
         all_occurrences.extend(occurrences)
         if error:
             all_errors.append(error)

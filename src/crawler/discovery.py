@@ -3,6 +3,7 @@ URL Discovery and sitemap parsing module.
 """
 
 from typing import List, Optional, Set, Tuple
+import asyncio
 
 import httpx
 from bs4 import BeautifulSoup, FeatureNotFound
@@ -49,7 +50,7 @@ async def parse_sitemap(
         )
         return urls
 
-    is_safe, reason = validate_url_ssrf(sitemap_url)
+    is_safe, reason = await asyncio.to_thread(validate_url_ssrf, sitemap_url)
     if not is_safe:
         logger.warning(f"Skipping sitemap {sitemap_url}: {reason}")
         return urls

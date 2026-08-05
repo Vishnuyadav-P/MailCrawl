@@ -19,7 +19,7 @@ from typing import Optional
 from src.crawler.crawler import AsyncCrawler
 from src.models.scan import ScanConfig, ScanRecord
 from src.processing.deduplicator import deduplicate_and_process_emails
-from src.utils.logging import logger, create_scan_file_logger
+from src.utils.logging import logger, create_scan_file_logger, cleanup_scan_logger
 from src.utils.urls import is_same_registered_domain
 from web.jobs.adapters import EmailBatchAdapter, ProgressAdapter
 from web.jobs.registry import JobState, ScanCancelled, registry
@@ -113,6 +113,10 @@ def run_scan(job: JobState) -> None:
         store.save_results(job.scan_id, final_results, stats, job.config, crawler.crawl_graph)
         store.clear_checkpoint(job.scan_id)
 
+        # Release the crawler's memory (raw_occurrences, crawl_graph, queues)
+        # now that results are safely persisted to disk.
+        job.crawler = None
+
         job.results = final_results
         job.stats = stats
         job.mark_terminal("completed")
@@ -143,6 +147,8 @@ def run_scan(job: JobState) -> None:
             loop.close()
         except Exception:
             pass
+        if job.scan_id:
+            cleanup_scan_logger(job.scan_id)
 
 
 def _finish_incomplete(job: JobState, crawler: AsyncCrawler, status: str,

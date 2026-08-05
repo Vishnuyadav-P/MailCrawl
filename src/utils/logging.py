@@ -53,3 +53,19 @@ def create_scan_file_logger(scan_id: str, target_domain: str) -> tuple[logging.L
         scan_logger.addHandler(handler)
 
     return scan_logger, log_file_path
+
+
+def cleanup_scan_logger(scan_id: str) -> None:
+    """Closes and removes the per-scan file logger to free file descriptors."""
+    name = f"scan.{scan_id}"
+    scan_logger = logging.getLogger(name)
+    for handler in list(scan_logger.handlers):
+        try:
+            handler.close()
+        except Exception:
+            pass
+        scan_logger.removeHandler(handler)
+    # Remove from logging's internal manager so the logger can be garbage-collected
+    manager = logging.Logger.manager
+    if hasattr(manager, 'loggerDict') and name in manager.loggerDict:
+        del manager.loggerDict[name]

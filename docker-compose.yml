@@ -33,6 +33,12 @@ services:
       resources:
         limits:
           memory: 3g
+          cpus: '2.0'
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
 
 volumes:
   scan-data:

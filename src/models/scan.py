@@ -11,7 +11,7 @@ class ScanConfig(BaseModel):
     """Configuration options provided by the user for a domain crawl job."""
     target_domain: str
     max_depth: int = Field(default=0, ge=0)  # 0 = follow links as deep as the site goes
-    max_pages: int = Field(default=10000, ge=0)  # 0 = no limit; caps pages scanned per job
+    max_pages: int = Field(default=0, ge=0)  # 0 = no limit; caps pages scanned per job
     timeout: int = Field(default=10, ge=1, le=60)
     concurrent_requests: int = Field(default=10, ge=1, le=50)
     include_pdfs: bool = True

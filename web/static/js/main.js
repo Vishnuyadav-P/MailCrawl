@@ -132,8 +132,10 @@ const Main = (() => {
     if (!State.scanId) return;
     const csvBtn = $('live-export-csv');
     const xlsxBtn = $('live-export-xlsx');
+    const txtBtn = $('live-export-txt');
     if (csvBtn) csvBtn.href = API.exportUrl(State.scanId, 'csv');
     if (xlsxBtn) xlsxBtn.href = API.exportUrl(State.scanId, 'xlsx');
+    if (txtBtn) txtBtn.href = API.exportUrl(State.scanId, 'txt');
   }
 
   const handlers = {
@@ -341,13 +343,17 @@ const Main = (() => {
     // thread server-side — so pick it back up on reload.
     let previous = null;
     try { previous = localStorage.getItem(ACTIVE_SCAN_KEY); } catch { /* ignore */ }
-    if (previous) reattach(previous);
 
     try {
-      await API.health();
+      const h = await API.health();
+      if (h.active_scan_id) {
+          previous = h.active_scan_id;
+      }
     } catch {
       /* health is advisory; the app works without it */
     }
+
+    if (previous) reattach(previous);
   }
 
   return { init, attachToScan, reattach };

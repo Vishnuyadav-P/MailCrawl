@@ -332,6 +332,7 @@
           <div class="exports exports--live" id="live-exports">
             <a class="btn btn--ghost btn--sm" id="live-export-csv" download>Download CSV</a>
             <a class="btn btn--ghost btn--sm" id="live-export-xlsx" download>Download Excel</a>
+            <a class="btn btn--ghost btn--sm" id="live-export-txt" download>Download TXT</a>
           </div>
         </div>
 
@@ -399,19 +400,17 @@
             />
           </div>
           <div class="filters__set">
-            <label class="sr-only" for="f-type">Email type</label>
-            <select id="f-type">
-              <option value="">Any type</option>
-            </select>
-
             <label class="sr-only" for="f-validation">Validation</label>
             <select id="f-validation">
               <option value="">Any validation</option>
             </select>
 
-            <label class="sr-only" for="f-domain">Domain match</label>
-            <select id="f-domain">
-              <option value="">Any domain match</option>
+            <label class="sr-only" for="f-limit">Per page</label>
+            <select id="f-limit">
+              <option value="10">10 per page</option>
+              <option value="25">25 per page</option>
+              <option value="50">50 per page</option>
+              <option value="100">100 per page</option>
             </select>
 
             <label class="filters__conf" for="f-conf">
@@ -430,11 +429,6 @@
                 </th>
                 <th scope="col">Address</th>
                 <th scope="col">Name</th>
-                <th scope="col">Role</th>
-                <th scope="col">Department</th>
-                <th scope="col">Type</th>
-                <th scope="col">Purpose</th>
-                <th scope="col">Domain</th>
                 <th scope="col" class="col-num">Seen</th>
                 <th scope="col">Validation</th>
                 <th scope="col">Domain match</th>
@@ -462,9 +456,8 @@
 
         <div class="exports">
           <a class="btn btn--ghost" id="export-csv" download>Download CSV</a>
-          <a class="btn btn--ghost" id="export-xlsx" download
-            >Download Excel</a
-          >
+          <a class="btn btn--ghost" id="export-xlsx" download>Download Excel</a>
+          <a class="btn btn--ghost" id="export-txt" download>Download TXT</a>
           <span class="exports__note">Exports match the filters above.</span>
         </div>
 

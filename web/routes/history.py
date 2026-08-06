@@ -51,6 +51,7 @@ async def health():
     return {
         "status": "ok",
         "active_scans": len(active),
+        "active_scan_id": active[0].scan_id if active else None,
         "max_concurrent": registry.max_concurrent,
         "data_dir": str(store.log_path().parent),
     }

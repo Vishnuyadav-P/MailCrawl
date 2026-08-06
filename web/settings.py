@@ -32,7 +32,7 @@ def _float(name: str, default: float) -> float:
 
 # Each scan launches its own Chromium (src/crawler/crawler.py starts a PlaywrightFetcher
 # per crawl), so the browser is what caps concurrency here, not the event loop.
-MAX_CONCURRENT_SCANS: int = _int("MAX_CONCURRENT_SCANS", 2)
+MAX_CONCURRENT_SCANS: int = _int("MAX_CONCURRENT_SCANS", 1)
 
 # How long a finished job stays in memory. Results are on disk either way, and
 # GET /results falls back to disk, so eviction loses nothing.

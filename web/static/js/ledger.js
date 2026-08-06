@@ -77,9 +77,7 @@ const Ledger = (() => {
 
   function fillFacets(facets) {
     const map = {
-      'f-type': { values: facets.email_type || [], any: 'Any type' },
       'f-validation': { values: facets.validation_status || [], any: 'Any validation' },
-      'f-domain': { values: facets.domain_match || [], any: 'Any domain match' },
     };
 
     for (const [id, spec] of Object.entries(map)) {
@@ -108,9 +106,7 @@ const Ledger = (() => {
   function readFilters() {
     return {
       q: $('f-q').value.trim(),
-      email_type: $('f-type').value,
       validation_status: $('f-validation').value,
-      domain_match: $('f-domain').value,
       min_confidence: Number($('f-conf').value) || 0,
     };
   }
@@ -130,11 +126,6 @@ const Ledger = (() => {
       tr.appendChild(emailCell);
 
       tr.appendChild(cell(row.name));
-      tr.appendChild(cell(row.role));
-      tr.appendChild(cell(row.department));
-      tr.appendChild(cell(row.email_type));
-      tr.appendChild(cell(row.purpose));
-      tr.appendChild(cell(row.domain, 'cell-mono'));
 
       const seen = cell(row.occurrences);
       seen.className = 'col-num';
@@ -178,6 +169,7 @@ const Ledger = (() => {
     if (!State.scanId) return;
     $('export-csv').href = API.exportUrl(State.scanId, 'csv', State.filters);
     $('export-xlsx').href = API.exportUrl(State.scanId, 'xlsx', State.filters);
+    $('export-txt').href = API.exportUrl(State.scanId, 'txt', State.filters);
   }
 
   function updatePager() {
@@ -239,7 +231,7 @@ const Ledger = (() => {
   }
 
   function bind() {
-    ['f-type', 'f-validation', 'f-domain'].forEach((id) => {
+    ['f-validation'].forEach((id) => {
       $(id).addEventListener('change', onFilterChange);
     });
 
@@ -249,6 +241,15 @@ const Ledger = (() => {
       setText($('f-conf-out'), e.target.value);
       onFilterChange();
     });
+
+    const fLimit = $('f-limit');
+    if (fLimit) {
+      fLimit.addEventListener('change', (e) => {
+        State.page.limit = Number(e.target.value) || 10;
+        State.page.offset = 0;
+        load();
+      });
+    }
 
     $('page-prev').addEventListener('click', () => {
       State.page.offset = Math.max(0, State.page.offset - State.page.limit);

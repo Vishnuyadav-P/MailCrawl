@@ -47,8 +47,8 @@ def generate_excel_bytes(
     ws_emails.views.sheetView[0].showGridLines = True
 
     email_headers = [
-        "Email", "Name", "Role", "Department", "Type", "Purpose",
-        "Domain", "Source URL", "Source Title", "Source Type",
+        "Email", "Name",
+        "Source URL", "Source Title", "Source Type",
         "Occurrences", "Validation Status", "Domain Match", "Confidence"
     ]
     ws_emails.append(email_headers)
@@ -57,11 +57,6 @@ def generate_excel_bytes(
         ws_emails.append([
             item.email,
             item.name or "",
-            item.role or "",
-            item.department or "",
-            item.email_type,
-            item.purpose or "",
-            item.domain,
             item.source_url,
             item.source_title,
             item.source_type,
@@ -71,7 +66,7 @@ def generate_excel_bytes(
             item.confidence
         ])
 
-    _format_sheet(ws_emails, header_font, header_fill, thin_border, hyperlink_col_idx=8)
+    _format_sheet(ws_emails, header_font, header_fill, thin_border, hyperlink_col_idx=3)
 
     # 2. Scan Summary Sheet
     ws_summary = wb.create_sheet(title="Scan Summary")

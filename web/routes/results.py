@@ -202,3 +202,25 @@ async def export_xlsx(
         media_type=XLSX_MEDIA_TYPE,
         headers={"Content-Disposition": _attachment(f"{target_domain}_emails_{today}.xlsx")},
     )
+
+
+@router.get("/scans/{scan_id}/export.txt")
+async def export_txt(
+    scan_id: str,
+    q: Optional[str] = None,
+    email_type: Optional[str] = None,
+    validation_status: Optional[str] = None,
+    domain_match: Optional[str] = None,
+    min_confidence: int = Query(default=0, ge=0, le=100),
+):
+    results, _stats, _config, _errors, target_domain = await _load_scan_payload(scan_id)
+    filtered = apply_filters(results, _spec(q, email_type, validation_status, domain_match, min_confidence))
+
+    today = datetime.date.today().strftime("%Y-%m-%d")
+    data = "\n".join(r.email for r in filtered)
+
+    return Response(
+        content=data,
+        media_type="text/plain",
+        headers={"Content-Disposition": _attachment(f"{target_domain}_emails_{today}.txt")},
+    )

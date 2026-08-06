@@ -15,7 +15,7 @@ from src.models.email import CanonicalEmailResult
 
 # Column order is part of the export contract — the XLSX 'Emails' sheet mirrors it.
 CSV_COLUMNS = [
-    "Email", "Name", "Role", "Department", "Type", "Purpose", "Domain",
+    "Email", "Name",
     "Source URL", "Source Title", "Source Type", "Occurrences",
     "Validation Status", "Domain Match", "Confidence",
 ]
@@ -26,11 +26,6 @@ def _row(item: CanonicalEmailResult) -> List[Any]:
     return [
         item.email,
         item.name or "",
-        item.role or "",
-        item.department or "",
-        item.email_type,
-        item.purpose or "",
-        item.domain,
         item.source_url,
         item.source_title,
         item.source_type,

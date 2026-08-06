@@ -546,7 +546,12 @@ class AsyncCrawler:
         self.resumed_from_pages = self.stats.pages_scanned
 
         # Already-found emails are replayed so the live feed reflects the full set
-        self._pending_email_batch = list(self.raw_occurrences)
+        self._pending_email_batch = []
+        unique_seen = set()
+        for occ in self.raw_occurrences:
+            if occ.email not in unique_seen:
+                unique_seen.add(occ.email)
+                self._pending_email_batch.append(occ)
         self._flush_email_batch()
 
         return queue

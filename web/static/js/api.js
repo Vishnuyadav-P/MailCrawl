@@ -80,5 +80,25 @@ const API = (() => {
     deleteScanData: (scanId) => request(`/api/scans/${encodeURIComponent(scanId)}/data`, {
       method: 'DELETE',
     }),
+
+    validateFile: async (file) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await fetch('/api/validate_file', {
+        method: 'POST',
+        body: formData,
+      });
+      let body = null;
+      try {
+        body = await response.json();
+      } catch {}
+      if (!response.ok) {
+        const detail = body && body.detail ? (typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail)) : `Request failed (HTTP ${response.status})`;
+        const error = new Error(detail);
+        error.status = response.status;
+        throw error;
+      }
+      return body;
+    }
   };
 })();

@@ -41,6 +41,9 @@ PLACEHOLDER_EMAILS = {
 }
 
 
+from functools import lru_cache
+
+@lru_cache(maxsize=8192)
 def is_valid_email_syntax(email: str) -> bool:
     """Validates basic syntax according to standard email specifications."""
     if not email or not isinstance(email, str):
@@ -72,6 +75,7 @@ def is_valid_email_syntax(email: str) -> bool:
     return True
 
 
+@lru_cache(maxsize=8192)
 def is_false_positive_email(email: str) -> bool:
     """Identifies common extraction false positives (e.g. image filenames, placeholder examples)."""
     if not is_valid_email_syntax(email):
@@ -114,6 +118,7 @@ def is_false_positive_email(email: str) -> bool:
     return False
 
 
+@lru_cache(maxsize=8192)
 def normalize_email_address(email: str) -> str:
     """Normalizes an email address to lowercase and strips surrounding whitespace/punctuation."""
     if not email:

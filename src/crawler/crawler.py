@@ -263,7 +263,7 @@ class AsyncCrawler:
                 self._graph_node(url, "page", "crawled", language=language)
 
                 # Extract content
-                extracted = extract_from_html(html_body, url, self.registered_domain)
+                extracted = await asyncio.to_thread(extract_from_html, html_body, url, self.registered_domain)
 
                 # Fallback to Playwright if JS rendering is always or automatic with low text
                 if (
@@ -272,10 +272,10 @@ class AsyncCrawler:
                 ):
                     rendered_html = await self.playwright_fetcher.fetch_html(url, timeout_seconds=self.config.timeout)
                     if rendered_html:
-                        extracted = extract_from_html(rendered_html, url, self.registered_domain)
+                        extracted = await asyncio.to_thread(extract_from_html, rendered_html, url, self.registered_domain)
 
                 # Process mailto links
-                mailto_occs = process_mailto_emails(extracted.mailto_emails, url, extracted.title)
+                mailto_occs = await asyncio.to_thread(process_mailto_emails, extracted.mailto_emails, url, extracted.title)
                 for occ in mailto_occs:
                     occ.context = extract_surrounding_context(extracted.visible_text, occ.email)
                 for occ in mailto_occs:
@@ -283,7 +283,7 @@ class AsyncCrawler:
                 self._record_occurrences(mailto_occs)
 
                 # Process text emails
-                text_occs = extract_emails_from_text(extracted.visible_text, url, extracted.title)
+                text_occs = await asyncio.to_thread(extract_emails_from_text, extracted.visible_text, url, extracted.title)
                 for occ in text_occs:
                     occ.context = extract_surrounding_context(extracted.visible_text, occ.email)
                 for occ in text_occs:
@@ -394,7 +394,10 @@ class AsyncCrawler:
                     return
 
                 self.stats.pdf_files += 1
-                pdf_occs = extract_emails_from_pdf_bytes(resp.content, pdf_url, enable_ocr=self.config.enable_pdf_ocr, ocr_languages=self.config.ocr_languages)
+                pdf_occs = await asyncio.to_thread(
+                    extract_emails_from_pdf_bytes,
+                    resp.content, pdf_url, enable_ocr=self.config.enable_pdf_ocr, ocr_languages=self.config.ocr_languages
+                )
                 self._graph_node(pdf_url, "pdf", "crawled")
                 self._record_occurrences(pdf_occs)
             else:

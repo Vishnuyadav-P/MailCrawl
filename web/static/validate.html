@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Batch Validate - MailCrawl</title>
+    <meta name="description" content="MailCrawl — batch validate email addresses." />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    />
+
+    <link rel="stylesheet" href="/css/tokens.css" />
+    <link rel="stylesheet" href="/css/base.css" />
+    <link rel="stylesheet" href="/css/rail.css" />
+    <link rel="stylesheet" href="/css/ledger.css" />
+    <link rel="stylesheet" href="/css/motion.css" />
+    <style>
+      .masthead__nav {
+        display: flex;
+        gap: 1.5rem;
+        margin-left: 2rem;
+        align-items: center;
+      }
+      .masthead__nav a {
+        color: var(--tx-2);
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .masthead__nav a:hover {
+        color: var(--tx-1);
+      }
+      .masthead__nav a.active {
+        color: var(--tx-1);
+        border-bottom: 2px solid var(--accent);
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="masthead">
+      <div class="masthead__id" style="display: flex; align-items: center;">
+        <h1 class="masthead__title">MailCrawl</h1>
+        <nav class="masthead__nav">
+          <a href="/">Scanner</a>
+          <a href="/validate.html" class="active">Batch Validate</a>
+        </nav>
+      </div>
+      <div class="masthead__status">
+        <span class="statusdot" id="status-dot" data-state="idle" aria-hidden="true"></span>
+        <span class="statusdot__label" id="status-label" role="status" aria-live="polite">Ready</span>
+      </div>
+    </header>
+
+    <main class="page" id="main">
+      <section class="section" id="validation-section" aria-label="Batch Validate">
+        <div class="section__head">
+          <h2 class="section__title">Batch Validate Emails</h2>
+          <p class="section__note">Upload a CSV or Excel file to validate email addresses.</p>
+        </div>
+        <form class="command" id="validate-form" autocomplete="off">
+          <div class="command__field command__field--domain">
+            <label class="command__label" for="validation-file">Select file (.csv, .xlsx)</label>
+            <input type="file" id="validation-file" name="file" accept=".csv, .xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" required />
+          </div>
+          <button type="submit" class="btn btn--primary" id="validate-btn">
+            <span>Validate</span>
+          </button>
+        </form>
+        <p class="formerror" id="validate-error" role="alert" hidden></p>
+        
+        <div class="tablewrap" id="validate-results" hidden style="margin-top: 1rem; margin-bottom: 2rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3>Results</h3>
+            <div class="exports">
+              <button type="button" class="btn btn--ghost" id="export-csv">Download CSV</button>
+              <button type="button" class="btn btn--ghost" id="export-xlsx">Download Excel</button>
+            </div>
+          </div>
+          <table class="ledger__table">
+            <thead>
+              <tr>
+                <th scope="col" class="col-num">#</th>
+                <th scope="col">Original Email</th>
+                <th scope="col">Normalized</th>
+                <th scope="col">Syntax</th>
+                <th scope="col">MX Status</th>
+                <th scope="col">Mailbox</th>
+                <th scope="col">Disposable</th>
+                <th scope="col">Role Account</th>
+              </tr>
+            </thead>
+            <tbody id="validate-rows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <script src="/js/api.js?v=1"></script>
+    <script src="/js/state.js"></script>
+    <script src="/js/validation.js"></script>
+  </body>
+</html>

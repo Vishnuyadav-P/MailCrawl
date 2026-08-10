@@ -41,7 +41,7 @@ def extract_from_html(
     if not html_content or not isinstance(html_content, str):
         return HTMLExtractionResult("", "", [], [], [], [])
 
-    soup = BeautifulSoup(html_content, "html.parser")
+    soup = BeautifulSoup(html_content, "lxml")
 
     # Extract title
     title = ""

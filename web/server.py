@@ -19,7 +19,7 @@ from web.jobs.registry import registry
 from web.services import schedules as schedule_store, store
 from web.jobs.runner import build_job, start_job
 from src.models.scan import ScanConfig
-from web.routes import history, results, scans, stream, schedules
+from web.routes import history, results, scans, stream, schedules, validate
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -85,6 +85,7 @@ def create_app() -> FastAPI:
     app.include_router(results.router)
     app.include_router(history.router)
     app.include_router(schedules.router)
+    app.include_router(validate.router)
 
     # Registered last so it cannot shadow /api.
     app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")

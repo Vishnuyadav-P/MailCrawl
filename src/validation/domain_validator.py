@@ -143,6 +143,7 @@ def check_domain_mx_records(domain: str) -> str:
         return "Unknown"
 
 
+@lru_cache(maxsize=4096)
 def classify_domain_match(email: str, target_registered_domain: str) -> str:
     """
     Describes how an email address's host relates to the domain being scanned.
@@ -198,21 +199,65 @@ def validate_email_for_domain(email: str, target_registered_domain: str) -> tupl
 ROLE_PREFIXES = {"admin", "billing", "careers", "contact", "help", "hr", "info", "legal", "privacy", "sales", "security", "support"}
 DISPOSABLE_DOMAINS = {"mailinator.com", "guerrillamail.com", "10minutemail.com", "tempmail.com"}
 
-def get_email_verification(email: str) -> EmailVerification:
-    """Low-risk verification evidence. SMTP recipient probing remains opt-in by design."""
+from src.validation.email_validator import is_valid_email_syntax, is_false_positive_email
+
+import smtplib
+
+@lru_cache(maxsize=1024)
+def check_smtp_mailbox(email: str, host: str) -> str:
+    """
+    Connects to the MX record for the host and checks if the recipient exists.
+    Returns 'valid', 'invalid', or 'unknown'.
+    """
+    try:
+        answers = dns.resolver.resolve(host, "MX", lifetime=3.0)
+        mx_record = sorted(answers, key=lambda r: r.preference)[0].exchange.to_text()
+    except Exception:
+        return "unknown"
+
+    try:
+        with smtplib.SMTP(mx_record, timeout=5.0) as server:
+            server.helo("mailcrawl.local")
+            code_mail, _ = server.mail("test@example.com")
+            if code_mail != 250:
+                return "unknown"  # Sender was rejected; we cannot accurately test the recipient.
+                
+            code_rcpt, _ = server.rcpt(email)
+            if code_rcpt == 250:
+                return "valid"
+            elif code_rcpt >= 500:
+                return "invalid"
+            return "unknown"
+    except Exception as exc:
+        logger.warning(f"SMTP check failed for {email} via {mx_record}: {exc}")
+        return "unknown"
+
+def get_email_verification(email: str, probe_smtp: bool = False) -> EmailVerification:
+    """Verifies syntax, MX records, and optionally actively probes SMTP for the mailbox."""
     syntax = is_valid_email_syntax(email)
+    is_fp = is_false_positive_email(email)
     checked = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    if not syntax:
-        return EmailVerification(syntax_valid=False, checked_at=checked, provider_notes="Invalid address syntax")
+    if not syntax or is_fp:
+        return EmailVerification(syntax_valid=False, checked_at=checked, provider_notes="Invalid address syntax or false positive")
     local, host = email.rsplit("@", 1)
     mx = check_domain_mx_records(host)
     disposable = host.encode("idna").decode("ascii") in DISPOSABLE_DOMAINS
     role = local.casefold() in ROLE_PREFIXES
-    adjustment = (-20 if disposable else 0) + (-5 if role else 0)
+    
+    mx_status = "valid" if mx == "Valid Domain" else "absent" if mx == "No MX Record" else "unknown"
+    
+    mailbox_status = "unverified"
+    provider_notes = "DNS-only verification; no SMTP recipient probe performed."
+    if probe_smtp and mx_status == "valid":
+        mailbox_status = check_smtp_mailbox(email, host)
+        provider_notes = "SMTP recipient probe performed."
+    
+    adjustment = (-20 if disposable else 0) + (-5 if role else 0) + (20 if mailbox_status == "valid" else -50 if mailbox_status == "invalid" else 0)
+    
     return EmailVerification(
         syntax_valid=True, domain_resolves=(mx != "No MX Record"),
-        mx_status="valid" if mx == "Valid Domain" else "absent" if mx == "No MX Record" else "unknown",
-        mailbox_status="unverified", disposable=disposable, role_account=role,
-        checked_at=checked, provider_notes="DNS-only verification; no SMTP recipient probe performed.",
+        mx_status=mx_status,
+        mailbox_status=mailbox_status, disposable=disposable, role_account=role,
+        checked_at=checked, provider_notes=provider_notes,
         confidence_adjustment=adjustment,
     )

@@ -178,12 +178,12 @@ async def _scan_one_source(
     if "html" not in content_type and "text" not in content_type:
         return [], None
 
-    extracted = extract_from_html(resp.text, url, registered_domain)
+    extracted = await asyncio.to_thread(extract_from_html, resp.text, url, registered_domain)
     source_title = f"[{label}] {extracted.title or urlparse(url).netloc}"
 
     occurrences: List[EmailOccurrence] = []
-    occurrences.extend(process_mailto_emails(extracted.mailto_emails, url, source_title))
-    occurrences.extend(extract_emails_from_text(extracted.visible_text, url, source_title))
+    occurrences.extend(await asyncio.to_thread(process_mailto_emails, extracted.mailto_emails, url, source_title))
+    occurrences.extend(await asyncio.to_thread(extract_emails_from_text, extracted.visible_text, url, source_title))
 
     for occ in occurrences:
         occ.source_type = "external"

@@ -18,13 +18,37 @@
     <link rel="stylesheet" href="/css/rail.css" />
     <link rel="stylesheet" href="/css/ledger.css" />
     <link rel="stylesheet" href="/css/motion.css" />
+    <style>
+      .masthead__nav {
+        display: flex;
+        gap: 1.5rem;
+        margin-left: 2rem;
+        align-items: center;
+      }
+      .masthead__nav a {
+        color: var(--tx-2);
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .masthead__nav a:hover {
+        color: var(--tx-1);
+      }
+      .masthead__nav a.active {
+        color: var(--tx-1);
+        border-bottom: 2px solid var(--accent);
+      }
+    </style>
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
 
     <header class="masthead">
-      <div class="masthead__id">
+      <div class="masthead__id" style="display: flex; align-items: center;">
         <h1 class="masthead__title">MailCrawl</h1>
+        <nav class="masthead__nav">
+          <a href="/" class="active">Scanner</a>
+          <a href="/validate.html">Batch Validate</a>
+        </nav>
       </div>
       <div class="masthead__status">
         <span
@@ -288,6 +312,7 @@
         </div>
       </details>
 
+
       <!-- Frontier meter -->
       <section
         class="frontier"
@@ -512,7 +537,7 @@
     <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
     <script src="/js/provenance.js"></script>
-    <script src="/js/api.js"></script>
+    <script src="/js/api.js?v=1"></script>
     <script src="/js/state.js"></script>
     <script src="/js/rail.js"></script>
     <script src="/js/ledger.js"></script>

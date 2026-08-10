@@ -52,30 +52,100 @@ a { color: var(--violet); }
 
 .masthead {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: var(--sp-5);
   flex-wrap: wrap;
-  padding: var(--sp-6) var(--sp-6) var(--sp-5);
-  border-bottom: 1px solid var(--rule);
-  background: var(--surface);
-  position: relative;
+  padding: var(--sp-4) var(--sp-6);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  transition: all 0.3s ease;
 }
 
-/* The rule draws itself in on load — the opening beat of the page sequence. */
 .masthead::after {
   content: "";
-  position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
-  background: linear-gradient(90deg, var(--violet), var(--teal) 55%, var(--amber));
-  transform-origin: left center;
+  position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  background: linear-gradient(90deg, var(--violet), var(--teal), var(--amber), var(--violet));
+  background-size: 300% 300%;
+  animation: gradientShift 6s ease infinite;
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.masthead__id {
+  display: flex;
+  align-items: center;
 }
 
 .masthead__title {
   font-family: var(--font-display);
-  font-size: var(--step-3);
+  font-size: var(--step-2);
   font-weight: 800;
   letter-spacing: -0.025em;
   line-height: 1.05;
+  background: linear-gradient(90deg, var(--violet), var(--teal));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  transition: transform 0.3s ease;
+  margin-right: 2rem;
+}
+
+.masthead__title:hover {
+  transform: scale(1.02);
+}
+
+.masthead__nav {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+}
+
+.masthead__nav a {
+  position: relative;
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1rem;
+  padding: 0.5rem 0;
+  transition: color 0.3s ease;
+}
+
+.masthead__nav a::after {
+  content: "";
+  position: absolute;
+  width: 0;
+  height: 2px;
+  bottom: 0;
+  left: 0;
+  background-color: var(--violet);
+  transition: width 0.3s ease;
+  border-radius: 2px;
+}
+
+.masthead__nav a:hover {
+  color: var(--violet);
+}
+
+.masthead__nav a:hover::after {
+  width: 100%;
+}
+
+.masthead__nav a.active {
+  color: var(--violet);
+}
+
+.masthead__nav a.active::after {
+  width: 100%;
 }
 
 .masthead__status { display: flex; align-items: center; gap: var(--sp-2); }

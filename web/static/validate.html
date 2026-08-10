@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Batch Validate - MailCrawl</title>
-    <meta name="description" content="MailCrawl — batch validate email addresses." />
+    <title>MailCrawl</title>
+    <meta name="description" content="MailCrawl — find email addresses on a domain." />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -13,97 +13,629 @@
       href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
     />
 
-    <link rel="stylesheet" href="/css/tokens.css" />
-    <link rel="stylesheet" href="/css/base.css" />
-    <link rel="stylesheet" href="/css/rail.css" />
-    <link rel="stylesheet" href="/css/ledger.css" />
-    <link rel="stylesheet" href="/css/motion.css" />
-    <style>
-      .masthead__nav {
-        display: flex;
-        gap: 1.5rem;
-        margin-left: 2rem;
-        align-items: center;
-      }
-      .masthead__nav a {
-        color: var(--tx-2);
-        text-decoration: none;
-        font-weight: 500;
-      }
-      .masthead__nav a:hover {
-        color: var(--tx-1);
-      }
-      .masthead__nav a.active {
-        color: var(--tx-1);
-        border-bottom: 2px solid var(--accent);
-      }
-    </style>
+    <link rel="stylesheet" href="/css/tokens.css?v=2" />
+    <link rel="stylesheet" href="/css/base.css?v=2" />
+    <link rel="stylesheet" href="/css/rail.css?v=2" />
+    <link rel="stylesheet" href="/css/ledger.css?v=2" />
+    <link rel="stylesheet" href="/css/motion.css?v=2" />
+
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
 
     <header class="masthead">
-      <div class="masthead__id" style="display: flex; align-items: center;">
+      <div class="masthead__id" style="display: flex; align-items: center; flex: 1;">
         <h1 class="masthead__title">MailCrawl</h1>
-        <nav class="masthead__nav">
-          <a href="/">Scanner</a>
-          <a href="/validate.html" class="active">Batch Validate</a>
-        </nav>
       </div>
-      <div class="masthead__status">
-        <span class="statusdot" id="status-dot" data-state="idle" aria-hidden="true"></span>
-        <span class="statusdot__label" id="status-label" role="status" aria-live="polite">Ready</span>
+      <nav class="masthead__nav" style="flex: 1; justify-content: center;">
+        <a href="#scanner" class="active" id="nav-scanner">Scanner</a>
+        <a href="#validate" id="nav-validate">Batch Validate</a>
+      </nav>
+      <div class="masthead__status" style="flex: 1; justify-content: flex-end;">
+        <span
+          class="statusdot"
+          id="status-dot"
+          data-state="idle"
+          aria-hidden="true"
+        ></span>
+        <span
+          class="statusdot__label"
+          id="status-label"
+          role="status"
+          aria-live="polite"
+          >Idle</span
+        >
       </div>
     </header>
 
     <main class="page" id="main">
-      <section class="section" id="validation-section" aria-label="Batch Validate">
-        <div class="section__head">
-          <h2 class="section__title">Batch Validate Emails</h2>
-          <p class="section__note">Upload a CSV or Excel file to validate email addresses.</p>
+      <div id="scanner-view">
+        <!-- Command bar -->
+        <form class="command" id="scan-form" autocomplete="off">
+        <div class="command__field command__field--domain">
+          <label class="command__label" for="domain">Domain</label>
+          <input
+            type="text"
+            id="domain"
+            name="domain"
+            placeholder="example.com"
+            required
+            spellcheck="false"
+          />
         </div>
-        <form class="command" id="validate-form" autocomplete="off">
-          <div class="command__field command__field--domain">
-            <label class="command__label" for="validation-file">Select file (.csv, .xlsx)</label>
-            <input type="file" id="validation-file" name="file" accept=".csv, .xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" required />
+        <div class="command__field">
+          <label class="command__label" for="search-name">Search name</label>
+          <input
+            type="text"
+            id="search-name"
+            name="search_name"
+            placeholder="Optional"
+            spellcheck="false"
+          />
+        </div>
+        <button type="submit" class="btn btn--primary" id="start-btn">
+          <span>Start scan</span>
+          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+            <path
+              d="M2 7h9M7.5 3l4 4-4 4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button type="button" class="btn btn--ghost" id="cancel-btn" hidden>
+          Stop
+        </button>
+      </form>
+
+      <p class="formerror" id="form-error" role="alert" hidden></p>
+
+      <!-- ================= SCAN SETTINGS ================= -->
+      <details class="settings" id="settings">
+        <summary class="settings__summary">
+          <span>Scan settings</span>
+          <svg
+            class="settings__chevron"
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            aria-hidden="true"
+          >
+            <path
+              d="M2.5 4.5 6 8l3.5-3.5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </summary>
+
+        <div class="tabs">
+          <input
+            type="radio"
+            name="settings-tab"
+            id="tab-scope"
+            class="tabs__radio"
+            checked
+          />
+          <input
+            type="radio"
+            name="settings-tab"
+            id="tab-sources"
+            class="tabs__radio"
+          />
+          <input
+            type="radio"
+            name="settings-tab"
+            id="tab-behaviour"
+            class="tabs__radio"
+          />
+
+          <div class="tabs__list">
+            <label class="tabs__tab" for="tab-scope">Scope</label>
+            <label class="tabs__tab" for="tab-sources">Sources</label>
+            <label class="tabs__tab" for="tab-behaviour">Behaviour</label>
           </div>
-          <button type="submit" class="btn btn--primary" id="validate-btn">
-            <span>Validate</span>
-          </button>
-        </form>
-        <p class="formerror" id="validate-error" role="alert" hidden></p>
-        
-        <div class="tablewrap" id="validate-results" hidden style="margin-top: 1rem; margin-bottom: 2rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h3>Results</h3>
-            <div class="exports">
-              <button type="button" class="btn btn--ghost" id="export-csv">Download CSV</button>
-              <button type="button" class="btn btn--ghost" id="export-xlsx">Download Excel</button>
+
+          <section class="tabs__panel" data-group="scope">
+            <label class="toggle-row">
+              <span class="toggle-row__text">
+                <span class="toggle-row__title">Unlimited crawl depth</span>
+                <span class="toggle-row__hint"
+                  >Follow links until the site is exhausted.</span
+                >
+              </span>
+              <span class="switch">
+                <input type="checkbox" id="unlimited-depth" checked />
+                <span class="switch__track" aria-hidden="true"></span>
+              </span>
+            </label>
+
+            <label class="toggle-row">
+              <span class="toggle-row__text">
+                <span class="toggle-row__title">Crawl all subdomains</span>
+                <span class="toggle-row__hint"
+                  >Include every reachable host on the domain.</span
+                >
+              </span>
+              <span class="switch">
+                <input type="checkbox" id="include-subdomains" checked />
+                <span class="switch__track" aria-hidden="true"></span>
+              </span>
+            </label>
+
+            <label class="toggle-row">
+              <span class="toggle-row__text">
+                <span class="toggle-row__title"
+                  >Only target-domain addresses</span
+                >
+                <span class="toggle-row__hint"
+                  >Filter results to the requested domain.</span
+                >
+              </span>
+              <span class="switch">
+                <input type="checkbox" id="only-target-domain" checked />
+                <span class="switch__track" aria-hidden="true"></span>
+              </span>
+            </label>
+
+            <div
+              class="field field--compact field--full"
+              id="depth-field"
+              hidden
+            >
+              <label class="field__label" for="max-depth"
+                >Maximum depth
+                <output id="max-depth-out">3</output></label
+              >
+              <input type="range" id="max-depth" min="1" max="10" value="3" />
             </div>
+          </section>
+
+          <section class="tabs__panel" data-group="sources">
+            <label class="check">
+              <input type="checkbox" id="include-pdfs" checked />
+              <span class="check__box" aria-hidden="true"></span>
+              <span class="check__text">Read PDFs</span>
+            </label>
+
+            <label class="check">
+              <input type="checkbox" id="enable-pdf-ocr" />
+              <span class="check__box" aria-hidden="true"></span>
+              <span class="check__text">Use OCR when scanned PDFs have no text</span>
+            </label>
+
+            <label class="check">
+              <input type="checkbox" id="include-wellknown" checked />
+              <span class="check__box" aria-hidden="true"></span>
+              <span class="check__text">security.txt, DNS and RDAP</span>
+            </label>
+
+            <label class="check">
+              <input type="checkbox" id="include-external" checked />
+              <span class="check__box" aria-hidden="true"></span>
+              <span class="check__text">External company presences</span>
+            </label>
+
+            <div class="field field--full">
+              <label class="field__label" for="extra-urls"
+                >Extra source URLs</label
+              >
+              <textarea
+                id="extra-urls"
+                rows="3"
+                spellcheck="false"
+                placeholder="https://boards.greenhouse.io/example&#10;https://www.linkedin.com/company/example"
+              ></textarea>
+            </div>
+          </section>
+
+          <section class="tabs__panel" data-group="behaviour">
+            <div class="field">
+              <label class="field__label" for="js-rendering"
+                >JavaScript rendering</label
+              >
+              <select id="js-rendering">
+                <option value="automatic" selected>Automatic</option>
+                <option value="always">Always</option>
+                <option value="never">Never</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="timeout"
+                >Request timeout <output id="timeout-out">10s</output></label
+              >
+              <input type="range" id="timeout" min="3" max="30" value="10" />
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="concurrency"
+                >Concurrent requests
+                <output id="concurrency-out">10</output></label
+              >
+              <input
+                type="range"
+                id="concurrency"
+                min="1"
+                max="30"
+                value="10"
+              />
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="reveal-every"
+                >Reveal every <output id="reveal-out">10</output></label
+              >
+              <input
+                type="range"
+                id="reveal-every"
+                min="1"
+                max="100"
+                value="10"
+              />
+            </div>
+
+            <label class="check">
+              <input type="checkbox" id="ignore-robots" />
+              <span class="check__box" aria-hidden="true"></span>
+              <span class="check__text">Ignore robots.txt rules</span>
+            </label>
+
+            <p class="warn" id="robots-warn" hidden>
+              Crawling disallowed paths can get you rate limited or blocked.
+            </p>
+          </section>
+        </div>
+      </details>
+
+
+      <!-- Frontier meter -->
+      <section
+        class="frontier"
+        id="frontier"
+        hidden
+        aria-label="Scan progress"
+      >
+        <div class="frontier__head">
+          <span class="frontier__phase" id="frontier-phase">Discovering</span>
+          <span class="frontier__count"
+            ><b id="pages-scanned">0</b> <i>/</i>
+            <span id="pages-known">0</span> pages</span
+          >
+        </div>
+        <div
+          class="frontier__track"
+          role="progressbar"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="0"
+          id="frontier-bar"
+        >
+          <div class="frontier__fill" id="frontier-fill"></div>
+        </div>
+        <p class="frontier__url" id="frontier-url"></p>
+      </section>
+
+      <!-- ===== THE PROVENANCE RAIL — signature element ===== -->
+      <section
+        class="rail-section"
+        id="rail-section"
+        hidden
+        aria-label="Addresses as they are found"
+      >
+        <div class="section__head">
+          <div>
+            <h2 class="section__title">Live</h2>
+            <p class="section__note" id="rail-note">
+              Addresses appear as they are found.
+            </p>
           </div>
+          <div class="exports exports--live" id="live-exports">
+            <a class="btn btn--ghost btn--sm" id="live-export-csv" download>Download CSV</a>
+            <a class="btn btn--ghost btn--sm" id="live-export-xlsx" download>Download Excel</a>
+            <a class="btn btn--ghost btn--sm" id="live-export-txt" download>Download TXT</a>
+          </div>
+        </div>
+
+        <ol
+          class="rail"
+          id="rail"
+          aria-live="polite"
+          aria-relevant="additions"
+        ></ol>
+
+        <p class="rail__empty" id="rail-empty">
+          Nothing yet. The rail fills as addresses surface.
+        </p>
+
+        <ul class="legend" aria-label="Provenance key">
+          <li data-prov="declared">
+            <span class="legend__chip">DNS</span> Declared &mdash; published
+            in a machine-readable record
+          </li>
+          <li data-prov="page">
+            <span class="legend__chip">WEB</span> Page &mdash; found in
+            rendered web content
+          </li>
+          <li data-prov="elsewhere">
+            <span class="legend__chip">PDF</span> Elsewhere &mdash; documents
+            and off-domain presences
+          </li>
+        </ul>
+      </section>
+
+      <!-- Summary -->
+      <section class="summary" id="summary" hidden aria-label="Scan summary">
+        <div class="section__head">
+          <h2 class="section__title">Summary</h2>
+        </div>
+        <div class="tiles" id="tiles"></div>
+        <p class="warn" id="robots-ignored-note" hidden></p>
+      </section>
+
+      <!-- Ledger -->
+      <section
+        class="ledger"
+        id="ledger"
+        hidden
+        aria-label="Discovered addresses"
+      >
+        <div class="section__head">
+          <h2 class="section__title">Ledger</h2>
+          <p class="section__note">
+            <b id="ledger-count">0</b> of
+            <span id="ledger-total">0</span> addresses
+          </p>
+        </div>
+
+        <div class="filters">
+          <div class="filters__search">
+            <label class="sr-only" for="f-q"
+              >Search addresses, names and roles</label
+            >
+            <input
+              type="search"
+              id="f-q"
+              placeholder="Search address, name, role, department"
+              spellcheck="false"
+            />
+          </div>
+          <div class="filters__set">
+            <label class="sr-only" for="f-validation">Validation</label>
+            <select id="f-validation">
+              <option value="">Any validation</option>
+            </select>
+
+            <label class="sr-only" for="f-limit">Per page</label>
+            <select id="f-limit">
+              <option value="10">10 per page</option>
+              <option value="25">25 per page</option>
+              <option value="50">50 per page</option>
+              <option value="100">100 per page</option>
+            </select>
+
+            <label class="filters__conf" for="f-conf">
+              Min confidence <output id="f-conf-out">0</output>
+              <input type="range" id="f-conf" min="0" max="100" value="0" />
+            </label>
+          </div>
+        </div>
+
+        <div class="tablewrap">
           <table class="ledger__table">
             <thead>
               <tr>
-                <th scope="col" class="col-num">#</th>
-                <th scope="col">Original Email</th>
-                <th scope="col">Normalized</th>
-                <th scope="col">Syntax</th>
-                <th scope="col">MX Status</th>
-                <th scope="col">Mailbox</th>
-                <th scope="col">Disposable</th>
-                <th scope="col">Role Account</th>
+                <th scope="col" class="col-sigil">
+                  <span class="sr-only">Provenance</span>
+                </th>
+                <th scope="col">Address</th>
+                <th scope="col">Name</th>
+                <th scope="col" class="col-num">Seen</th>
+                <th scope="col">Validation</th>
+                <th scope="col">Domain match</th>
+                <th scope="col" class="col-num">Conf.</th>
+                <th scope="col">Source</th>
               </tr>
             </thead>
-            <tbody id="validate-rows"></tbody>
+            <tbody id="ledger-rows"></tbody>
           </table>
         </div>
+
+        <p class="ledger__empty" id="ledger-empty" hidden>
+          No addresses match these filters.
+        </p>
+
+        <nav class="pager" id="pager" hidden aria-label="Result pages">
+          <button type="button" class="btn btn--ghost" id="page-prev">
+            Previous
+          </button>
+          <span class="pager__at" id="pager-at"></span>
+          <button type="button" class="btn btn--ghost" id="page-next">
+            Next
+          </button>
+        </nav>
+
+        <div class="exports">
+          <a class="btn btn--ghost" id="export-csv" download>Download CSV</a>
+          <a class="btn btn--ghost" id="export-xlsx" download>Download Excel</a>
+          <a class="btn btn--ghost" id="export-txt" download>Download TXT</a>
+          <span class="exports__note">Exports match the filters above.</span>
+        </div>
+
+        <details class="errors" id="errors-block" hidden>
+          <summary>
+            Logged scan errors (<span id="errors-count">0</span>)
+          </summary>
+          <div class="tablewrap">
+            <table class="ledger__table">
+              <thead>
+                <tr>
+                  <th scope="col">Type</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">URL</th>
+                  <th scope="col">Message</th>
+                </tr>
+              </thead>
+              <tbody id="errors-rows"></tbody>
+            </table>
+          </div>
+        </details>
       </section>
+
+      <!-- History -->
+      <section class="history" id="history" aria-label="Scan history">
+        <div class="section__head">
+          <h2 class="section__title">History</h2>
+          <p class="section__note" id="history-note"></p>
+        </div>
+        <div class="tablewrap">
+          <table class="ledger__table">
+            <thead>
+              <tr>
+                <th scope="col">Started</th>
+                <th scope="col">Search name</th>
+                <th scope="col">Domain</th>
+                <th scope="col">Status</th>
+                <th scope="col" class="col-num">Sites</th>
+                <th scope="col" class="col-num">Pages</th>
+                <th scope="col" class="col-num">Addresses</th>
+                <th scope="col" class="col-num">Duration</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="history-rows"></tbody>
+          </table>
+        </div>
+        <p class="history__empty" id="history-empty">No scans logged yet.</p>
+      </section>
+      </div> <!-- End scanner-view -->
+      
+      <!-- Validation View -->
+      <div id="validate-view" hidden>
+        <section class="section" id="validation-section" aria-label="Batch Validate">
+          <div class="section__head">
+            <h2 class="section__title">Batch Validate Emails</h2>
+            <p class="section__note">Upload a CSV or Excel file to validate email addresses.</p>
+          </div>
+          <form class="command" id="validate-form" autocomplete="off">
+            <div class="command__field command__field--domain">
+              <label class="command__label" for="validation-file">Select file (.csv, .xlsx)</label>
+              <input type="file" id="validation-file" name="file" accept=".csv, .xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" required />
+            </div>
+            <button type="submit" class="btn btn--primary" id="validate-btn">
+              <span>Validate</span>
+            </button>
+          </form>
+          <p class="formerror" id="validate-error" role="alert" hidden></p>
+          
+          <!-- Validation Progress Meter -->
+          <section class="frontier" id="validation-progress" hidden style="margin-top: 1.5rem;" aria-label="Validation progress">
+            <div class="frontier__head">
+              <span class="frontier__phase" id="validation-phase">Validating</span>
+              <span class="frontier__count">
+                <b id="emails-validated">0</b> <i>/</i>
+                <span id="emails-total">0</span> emails
+              </span>
+            </div>
+            <div class="frontier__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="validation-bar">
+              <div class="frontier__fill" id="validation-fill"></div>
+            </div>
+          </section>
+          
+          <div class="tablewrap" id="validate-results" hidden style="margin-top: 1rem; margin-bottom: 2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+              <h3>Results</h3>
+              <div class="exports">
+                <button type="button" class="btn btn--ghost" id="validate-export-csv">Download CSV</button>
+                <button type="button" class="btn btn--ghost" id="validate-export-xlsx">Download Excel</button>
+              </div>
+            </div>
+            <table class="ledger__table">
+              <thead>
+                <tr>
+                  <th scope="col" class="col-num">#</th>
+                  <th scope="col">Original Email</th>
+                  <th scope="col">Normalized</th>
+                  <th scope="col">Syntax</th>
+                  <th scope="col">MX Status</th>
+                  <th scope="col">Mailbox</th>
+                  <th scope="col">Remarks</th>
+                </tr>
+              </thead>
+              <tbody id="validate-rows"></tbody>
+            </table>
+          </div>
+          
+          <div class="history" id="validation-history-section" style="margin-top: 3rem;">
+            <div class="section__head" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+              <h2 class="section__title" style="margin: 0;">Validation History</h2>
+              <p class="history__note" id="validation-history-note" style="margin: 0; font-size: var(--step--1); color: var(--muted);"></p>
+            </div>
+            <div class="tablewrap" id="validation-history-tablewrap">
+              <table class="ledger__table">
+                <thead>
+                  <tr>
+                    <th scope="col">Date &amp; Time</th>
+                    <th scope="col">File Name</th>
+                    <th scope="col" class="col-num">Total Emails</th>
+                    <th scope="col" style="text-align: right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="validation-history-rows"></tbody>
+              </table>
+            </div>
+            <p class="history__empty" id="validation-history-empty" hidden style="margin-top: 1rem;">No validations logged yet.</p>
+          </div>
+          
+        </section>
+      </div> <!-- End validate-view -->
+      
     </main>
 
     <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
+    <script src="/js/provenance.js"></script>
     <script src="/js/api.js?v=1"></script>
     <script src="/js/state.js"></script>
+    <script src="/js/rail.js"></script>
+    <script src="/js/ledger.js"></script>
+    <script src="/js/history.js"></script>
+    <script src="/js/stream.js"></script>
     <script src="/js/validation.js"></script>
+    <script src="/js/main.js"></script>
+    <script>
+      const navScanner = document.getElementById('nav-scanner');
+      const navValidate = document.getElementById('nav-validate');
+      const viewScanner = document.getElementById('scanner-view');
+      const viewValidate = document.getElementById('validate-view');
+      const headerTitle = document.querySelector('.masthead__title');
+
+      function switchTab(tab) {
+        if (tab === 'validate') {
+          navScanner.classList.remove('active');
+          navValidate.classList.add('active');
+          viewScanner.hidden = true;
+          viewValidate.hidden = false;
+        } else {
+          navValidate.classList.remove('active');
+          navScanner.classList.add('active');
+          viewValidate.hidden = true;
+          viewScanner.hidden = false;
+        }
+      }
+
+      navScanner.addEventListener('click', (e) => { e.preventDefault(); switchTab('scanner'); });
+      navValidate.addEventListener('click', (e) => { e.preventDefault(); switchTab('validate'); });
+      
+      if (window.location.hash === '#validate' || window.location.pathname === '/validate.html') {
+        switchTab('validate');
+      }
+    </script>
   </body>
 </html>

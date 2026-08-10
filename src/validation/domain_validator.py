@@ -11,7 +11,7 @@ import dns.resolver
 import tldextract
 
 from src.utils.logging import logger
-from src.validation.email_validator import is_valid_email_syntax
+from src.validation.email_validator import is_valid_email_syntax, is_false_positive_email
 from src.models.email import EmailVerification
 from datetime import datetime, timezone
 
@@ -199,38 +199,37 @@ def validate_email_for_domain(email: str, target_registered_domain: str) -> tupl
 ROLE_PREFIXES = {"admin", "billing", "careers", "contact", "help", "hr", "info", "legal", "privacy", "sales", "security", "support"}
 DISPOSABLE_DOMAINS = {"mailinator.com", "guerrillamail.com", "10minutemail.com", "tempmail.com"}
 
-from src.validation.email_validator import is_valid_email_syntax, is_false_positive_email
-
 import smtplib
 
 @lru_cache(maxsize=1024)
-def check_smtp_mailbox(email: str, host: str) -> str:
+def check_smtp_mailbox(email: str, host: str) -> tuple[str, str]:
     """
     Connects to the MX record for the host and checks if the recipient exists.
-    Returns 'valid', 'invalid', or 'unknown'.
+    Returns ('valid'|'invalid'|'unknown', response_string).
     """
     try:
         answers = dns.resolver.resolve(host, "MX", lifetime=3.0)
         mx_record = sorted(answers, key=lambda r: r.preference)[0].exchange.to_text()
-    except Exception:
-        return "unknown"
+    except Exception as e:
+        return "unknown", f"DNS MX error: {e}"
 
     try:
         with smtplib.SMTP(mx_record, timeout=5.0) as server:
             server.helo("mailcrawl.local")
-            code_mail, _ = server.mail("test@example.com")
+            code_mail, msg_mail = server.mail("test@example.com")
             if code_mail != 250:
-                return "unknown"  # Sender was rejected; we cannot accurately test the recipient.
+                return "unknown", f"Sender rejected: {code_mail} {msg_mail.decode(errors='ignore')}"
                 
-            code_rcpt, _ = server.rcpt(email)
+            code_rcpt, msg_rcpt = server.rcpt(email)
+            resp_str = f"{code_rcpt} {msg_rcpt.decode(errors='ignore')}"
             if code_rcpt == 250:
-                return "valid"
+                return "valid", resp_str
             elif code_rcpt >= 500:
-                return "invalid"
-            return "unknown"
+                return "invalid", resp_str
+            return "unknown", resp_str
     except Exception as exc:
         logger.warning(f"SMTP check failed for {email} via {mx_record}: {exc}")
-        return "unknown"
+        return "unknown", f"SMTP error: {exc}"
 
 def get_email_verification(email: str, probe_smtp: bool = False) -> EmailVerification:
     """Verifies syntax, MX records, and optionally actively probes SMTP for the mailbox."""
@@ -249,8 +248,7 @@ def get_email_verification(email: str, probe_smtp: bool = False) -> EmailVerific
     mailbox_status = "unverified"
     provider_notes = "DNS-only verification; no SMTP recipient probe performed."
     if probe_smtp and mx_status == "valid":
-        mailbox_status = check_smtp_mailbox(email, host)
-        provider_notes = "SMTP recipient probe performed."
+        mailbox_status, provider_notes = check_smtp_mailbox(email, host)
     
     adjustment = (-20 if disposable else 0) + (-5 if role else 0) + (20 if mailbox_status == "valid" else -50 if mailbox_status == "invalid" else 0)
     

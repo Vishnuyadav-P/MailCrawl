@@ -13,44 +13,25 @@
       href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
     />
 
-    <link rel="stylesheet" href="/css/tokens.css" />
-    <link rel="stylesheet" href="/css/base.css" />
-    <link rel="stylesheet" href="/css/rail.css" />
-    <link rel="stylesheet" href="/css/ledger.css" />
-    <link rel="stylesheet" href="/css/motion.css" />
-    <style>
-      .masthead__nav {
-        display: flex;
-        gap: 1.5rem;
-        margin-left: 2rem;
-        align-items: center;
-      }
-      .masthead__nav a {
-        color: var(--tx-2);
-        text-decoration: none;
-        font-weight: 500;
-      }
-      .masthead__nav a:hover {
-        color: var(--tx-1);
-      }
-      .masthead__nav a.active {
-        color: var(--tx-1);
-        border-bottom: 2px solid var(--accent);
-      }
-    </style>
+    <link rel="stylesheet" href="/css/tokens.css?v=2" />
+    <link rel="stylesheet" href="/css/base.css?v=2" />
+    <link rel="stylesheet" href="/css/rail.css?v=2" />
+    <link rel="stylesheet" href="/css/ledger.css?v=2" />
+    <link rel="stylesheet" href="/css/motion.css?v=2" />
+
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
 
     <header class="masthead">
-      <div class="masthead__id" style="display: flex; align-items: center;">
+      <div class="masthead__id" style="display: flex; align-items: center; flex: 1;">
         <h1 class="masthead__title">MailCrawl</h1>
-        <nav class="masthead__nav">
-          <a href="/" class="active">Scanner</a>
-          <a href="/validate.html">Batch Validate</a>
-        </nav>
       </div>
-      <div class="masthead__status">
+      <nav class="masthead__nav" style="flex: 1; justify-content: center;">
+        <a href="#scanner" class="active" id="nav-scanner">Scanner</a>
+        <a href="#validate" id="nav-validate">Batch Validate</a>
+      </nav>
+      <div class="masthead__status" style="flex: 1; justify-content: flex-end;">
         <span
           class="statusdot"
           id="status-dot"
@@ -68,8 +49,9 @@
     </header>
 
     <main class="page" id="main">
-      <!-- Command bar -->
-      <form class="command" id="scan-form" autocomplete="off">
+      <div id="scanner-view">
+        <!-- Command bar -->
+        <form class="command" id="scan-form" autocomplete="off">
         <div class="command__field command__field--domain">
           <label class="command__label" for="domain">Domain</label>
           <input
@@ -532,6 +514,88 @@
         </div>
         <p class="history__empty" id="history-empty">No scans logged yet.</p>
       </section>
+      </div> <!-- End scanner-view -->
+      
+      <!-- Validation View -->
+      <div id="validate-view" hidden>
+        <section class="section" id="validation-section" aria-label="Batch Validate">
+          <div class="section__head">
+            <h2 class="section__title">Batch Validate Emails</h2>
+            <p class="section__note">Upload a CSV or Excel file to validate email addresses.</p>
+          </div>
+          <form class="command" id="validate-form" autocomplete="off">
+            <div class="command__field command__field--domain">
+              <label class="command__label" for="validation-file">Select file (.csv, .xlsx)</label>
+              <input type="file" id="validation-file" name="file" accept=".csv, .xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" required />
+            </div>
+            <button type="submit" class="btn btn--primary" id="validate-btn">
+              <span>Validate</span>
+            </button>
+          </form>
+          <p class="formerror" id="validate-error" role="alert" hidden></p>
+          
+          <!-- Validation Progress Meter -->
+          <section class="frontier" id="validation-progress" hidden style="margin-top: 1.5rem;" aria-label="Validation progress">
+            <div class="frontier__head">
+              <span class="frontier__phase" id="validation-phase">Validating</span>
+              <span class="frontier__count">
+                <b id="emails-validated">0</b> <i>/</i>
+                <span id="emails-total">0</span> emails
+              </span>
+            </div>
+            <div class="frontier__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="validation-bar">
+              <div class="frontier__fill" id="validation-fill"></div>
+            </div>
+          </section>
+          
+          <div class="tablewrap" id="validate-results" hidden style="margin-top: 1rem; margin-bottom: 2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+              <h3>Results</h3>
+              <div class="exports">
+                <button type="button" class="btn btn--ghost" id="validate-export-csv">Download CSV</button>
+                <button type="button" class="btn btn--ghost" id="validate-export-xlsx">Download Excel</button>
+              </div>
+            </div>
+            <table class="ledger__table">
+              <thead>
+                <tr>
+                  <th scope="col" class="col-num">#</th>
+                  <th scope="col">Original Email</th>
+                  <th scope="col">Normalized</th>
+                  <th scope="col">Syntax</th>
+                  <th scope="col">MX Status</th>
+                  <th scope="col">Mailbox</th>
+                  <th scope="col">Remarks</th>
+                </tr>
+              </thead>
+              <tbody id="validate-rows"></tbody>
+            </table>
+          </div>
+          
+          <div class="history" id="validation-history-section" style="margin-top: 3rem;">
+            <div class="section__head" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+              <h2 class="section__title" style="margin: 0;">Validation History</h2>
+              <p class="history__note" id="validation-history-note" style="margin: 0; font-size: var(--step--1); color: var(--muted);"></p>
+            </div>
+            <div class="tablewrap" id="validation-history-tablewrap">
+              <table class="ledger__table">
+                <thead>
+                  <tr>
+                    <th scope="col">Date &amp; Time</th>
+                    <th scope="col">File Name</th>
+                    <th scope="col" class="col-num">Total Emails</th>
+                    <th scope="col" style="text-align: right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="validation-history-rows"></tbody>
+              </table>
+            </div>
+            <p class="history__empty" id="validation-history-empty" hidden style="margin-top: 1rem;">No validations logged yet.</p>
+          </div>
+          
+        </section>
+      </div> <!-- End validate-view -->
+      
     </main>
 
     <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
@@ -543,6 +607,35 @@
     <script src="/js/ledger.js"></script>
     <script src="/js/history.js"></script>
     <script src="/js/stream.js"></script>
+    <script src="/js/validation.js"></script>
     <script src="/js/main.js"></script>
+    <script>
+      const navScanner = document.getElementById('nav-scanner');
+      const navValidate = document.getElementById('nav-validate');
+      const viewScanner = document.getElementById('scanner-view');
+      const viewValidate = document.getElementById('validate-view');
+      const headerTitle = document.querySelector('.masthead__title');
+
+      function switchTab(tab) {
+        if (tab === 'validate') {
+          navScanner.classList.remove('active');
+          navValidate.classList.add('active');
+          viewScanner.hidden = true;
+          viewValidate.hidden = false;
+        } else {
+          navValidate.classList.remove('active');
+          navScanner.classList.add('active');
+          viewValidate.hidden = true;
+          viewScanner.hidden = false;
+        }
+      }
+
+      navScanner.addEventListener('click', (e) => { e.preventDefault(); switchTab('scanner'); });
+      navValidate.addEventListener('click', (e) => { e.preventDefault(); switchTab('validate'); });
+      
+      if (window.location.hash === '#validate' || window.location.pathname === '/validate.html') {
+        switchTab('validate');
+      }
+    </script>
   </body>
 </html>

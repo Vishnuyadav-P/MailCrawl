@@ -1,32 +1,45 @@
 /* ==========================================================================
-   SignalHire Employee Crawler.
+   SignalHire Employee Crawler UI (Full-Width Stacked Layout matching Domain Scanner)
    ========================================================================== */
 
 const SignalHire = (() => {
   let lastResults = [];
-  let renderedCount = 0;
+  let railCount = 0;
+  let currentSearchQuery = '';
+
+  function getEl(id) {
+    return document.getElementById(id);
+  }
+
+  function setText(el, str) {
+    if (el) el.textContent = str;
+  }
+
+  function show(el, visible) {
+    if (el) el.hidden = !visible;
+  }
 
   async function downloadExport(format) {
     if (!lastResults.length) {
-      const errorEl = $('signalhire-error');
+      const errorEl = getEl('signalhire-error');
       if (errorEl) {
         setText(errorEl, 'No employee results to export. Please run a search first.');
         show(errorEl, true);
       }
       return;
     }
-    
+
     try {
       const response = await fetch('/api/signalhire/export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ results: lastResults, format })
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to export: ' + response.status);
       }
-      
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -38,7 +51,7 @@ const SignalHire = (() => {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('[SignalHire] Export error:', err);
-      const errorEl = $('signalhire-error');
+      const errorEl = getEl('signalhire-error');
       if (errorEl) {
         setText(errorEl, err.message || 'Export failed');
         show(errorEl, true);
@@ -47,95 +60,126 @@ const SignalHire = (() => {
   }
 
   function setExportEnabled(enabled) {
-    const btnCsv = $('signalhire-export-csv');
-    const btnXlsx = $('signalhire-export-xlsx');
-    if (btnCsv) btnCsv.disabled = !enabled;
-    if (btnXlsx) btnXlsx.disabled = !enabled;
-  }
-
-  function updateLiveFeed(results) {
-    const liveSection = $('signalhire-live-feed-section');
-    const feedList = $('signalhire-live-feed');
-    const countSpan = $('signalhire-live-count');
-    if (!feedList || !liveSection) return;
-
-    if (results.length === 0) {
-      show(liveSection, false);
-      feedList.innerHTML = '';
-      return;
-    }
-
-    show(liveSection, true);
-    if (countSpan) setText(countSpan, `${results.length} extracted so far`);
-
-    // Get recent 10 items (newest first)
-    const recent10 = results.slice(-10).reverse();
-    feedList.innerHTML = '';
-
-    recent10.forEach((item, idx) => {
-      const li = document.createElement('li');
-      li.className = 'sh-live-item row-animate';
-      
-      // Left side: badge + name
-      const leftDiv = document.createElement('div');
-      leftDiv.className = 'sh-live-left';
-
-      const badge = document.createElement('span');
-      badge.className = idx === 0 ? 'sh-live-badge sh-live-badge--new' : 'sh-live-badge';
-      badge.textContent = idx === 0 ? 'NEW' : `REC-${String(idx + 1).padStart(2, '0')}`;
-      leftDiv.appendChild(badge);
-
-      const nameSpan = document.createElement('span');
-      nameSpan.className = 'sh-live-name';
-      setText(nameSpan, item.name);
-      leftDiv.appendChild(nameSpan);
-
-      li.appendChild(leftDiv);
-
-      // Right side: job title pill badge
-      const titleSpan = document.createElement('span');
-      titleSpan.className = 'sh-live-title';
-      titleSpan.title = item.title || 'Employee';
-      setText(titleSpan, item.title || 'Employee');
-      li.appendChild(titleSpan);
-
-      feedList.appendChild(li);
+    const btns = [
+      getEl('signalhire-export-csv'),
+      getEl('signalhire-export-xlsx'),
+      getEl('signalhire-live-csv'),
+      getEl('signalhire-live-xlsx'),
+    ];
+    btns.forEach(btn => {
+      if (btn) btn.disabled = !enabled;
     });
   }
 
-  function renderResults(results) {
-    const tbody = $('signalhire-rows');
-    const countEl = $('signalhire-results-count');
-    if (countEl) setText(countEl, `${results.length} total profiles extracted`);
-    if (!tbody) return;
-    
-    for (let i = renderedCount; i < results.length; i++) {
-      const res = results[i];
+  function renderRail(results) {
+    const railSection = getEl('signalhire-rail-section');
+    const railOl = getEl('signalhire-rail');
+    const railEmpty = getEl('signalhire-rail-empty');
+    if (!railSection || !railOl) return;
+
+    if (results.length === 0) {
+      show(railSection, false);
+      railOl.innerHTML = '';
+      railCount = 0;
+      return;
+    }
+
+    show(railSection, true);
+    if (railEmpty) show(railEmpty, false);
+
+    for (let i = railCount; i < results.length; i++) {
+      const item = results[i];
+      const li = document.createElement('li');
+      li.className = 'rail__row row-animate';
+      li.style.setProperty('--prov', 'var(--p-web)');
+      li.style.setProperty('--prov-wash', 'var(--p-web-wash)');
+
+      const sigil = document.createElement('span');
+      sigil.className = 'rail__sigil';
+      sigil.textContent = 'EMP';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'rail__email';
+      nameSpan.style.fontWeight = '600';
+      nameSpan.textContent = item.name;
+
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'rail__where';
+      titleSpan.textContent = item.title || 'Employee';
+
+      li.appendChild(sigil);
+      li.appendChild(nameSpan);
+      li.appendChild(titleSpan);
+
+      railOl.prepend(li);
+    }
+    railCount = results.length;
+  }
+
+  function renderLedger() {
+    const ledgerSection = getEl('signalhire-ledger-section');
+    const tbody = getEl('signalhire-rows');
+    const countEl = getEl('signalhire-ledger-count');
+    const totalEl = getEl('signalhire-ledger-total');
+    const emptyEl = getEl('signalhire-empty');
+    if (!tbody || !ledgerSection) return;
+
+    if (lastResults.length === 0) {
+      show(ledgerSection, false);
+      tbody.innerHTML = '';
+      return;
+    }
+
+    show(ledgerSection, true);
+    if (totalEl) setText(totalEl, String(lastResults.length));
+
+    const query = currentSearchQuery.toLowerCase().trim();
+    const filtered = lastResults.filter(item => {
+      if (!query) return true;
+      const nameMatch = item.name && item.name.toLowerCase().includes(query);
+      const titleMatch = item.title && item.title.toLowerCase().includes(query);
+      return nameMatch || titleMatch;
+    });
+
+    if (countEl) setText(countEl, String(filtered.length));
+    tbody.innerHTML = '';
+
+    if (filtered.length === 0) {
+      if (emptyEl) show(emptyEl, true);
+      return;
+    }
+
+    if (emptyEl) show(emptyEl, false);
+
+    filtered.forEach((res, i) => {
       const tr = document.createElement('tr');
       tr.className = 'row-animate';
-      tr.style.animationDelay = `${(i % 10) * 40}ms`;
-      
+
       // 1. #
       const tdIdx = document.createElement('td');
       tdIdx.className = 'col-num cell-mono';
-      setText(tdIdx, String(i + 1));
+      tdIdx.textContent = String(i + 1);
       tr.appendChild(tdIdx);
-      
+
       // 2. Name
       const tdName = document.createElement('td');
       tdName.style.fontWeight = '600';
-      setText(tdName, res.name);
+      tdName.textContent = res.name;
       tr.appendChild(tdName);
-      
+
       // 3. Job Title
       const tdTitle = document.createElement('td');
       tdTitle.style.color = 'var(--muted)';
-      setText(tdTitle, res.title || 'Employee');
+      tdTitle.textContent = res.title || 'Employee';
       tr.appendChild(tdTitle);
-      
+
+      // 4. Source
+      const tdSrc = document.createElement('td');
+      tdSrc.innerHTML = '<span class="legend__chip" style="--prov: var(--p-web); --prov-wash: var(--p-web-wash);">SignalHire</span>';
+      tr.appendChild(tdSrc);
+
       tbody.appendChild(tr);
-    }
-    renderedCount = results.length;
+    });
   }
 
   async function loadHistoricalResults(item) {
@@ -145,22 +189,23 @@ const SignalHire = (() => {
       const data = await response.json();
       const results = data.results || [];
       lastResults = results;
-      
-      const resultsContainer = $('signalhire-results');
-      const tbody = $('signalhire-rows');
-      if (tbody) tbody.innerHTML = '';
-      renderedCount = 0;
-      
-      renderResults(results);
-      updateLiveFeed(results);
-      if (resultsContainer) {
-        show(resultsContainer, true);
-        resultsContainer.scrollIntoView({ behavior: 'smooth' });
+
+      const railOl = getEl('signalhire-rail');
+      if (railOl) railOl.innerHTML = '';
+      railCount = 0;
+
+      renderRail(results);
+      renderLedger();
+
+      const ledgerSection = getEl('signalhire-ledger-section');
+      if (ledgerSection) {
+        show(ledgerSection, true);
+        ledgerSection.scrollIntoView({ behavior: 'smooth' });
       }
-      setExportEnabled(true);
+      setExportEnabled(results.length > 0);
     } catch (err) {
       console.error('[SignalHire] Load history error:', err);
-      const errorEl = $('signalhire-error');
+      const errorEl = getEl('signalhire-error');
       if (errorEl) {
         setText(errorEl, err.message || 'Failed to load historical results');
         show(errorEl, true);
@@ -170,17 +215,17 @@ const SignalHire = (() => {
 
   async function submitCrawl(event) {
     event.preventDefault();
-    
-    const inputEl = $('signalhire-company');
-    const errorEl = $('signalhire-error');
-    const btn = $('signalhire-btn');
-    const btnSpan = btn.querySelector('span');
-    const resultsContainer = $('signalhire-results');
-    const tbody = $('signalhire-rows');
-    const liveSection = $('signalhire-live-feed-section');
-    
+
+    const inputEl = getEl('signalhire-company');
+    const errorEl = getEl('signalhire-error');
+    const btn = getEl('signalhire-btn');
+    const btnSpan = btn ? btn.querySelector('span') : null;
+    const railOl = getEl('signalhire-rail');
+    const railSection = getEl('signalhire-rail-section');
+    const ledgerSection = getEl('signalhire-ledger-section');
+
     show(errorEl, false);
-    
+
     const companyVal = inputEl ? inputEl.value.trim() : '';
     if (!companyVal) {
       setText(errorEl, 'Please enter a company name, domain, or SignalHire URL.');
@@ -189,93 +234,81 @@ const SignalHire = (() => {
     }
 
     try {
-      renderedCount = 0;
+      railCount = 0;
       lastResults = [];
       setExportEnabled(false);
-      btn.disabled = true;
-      setText(btnSpan, 'Searching...');
-      show(resultsContainer, false);
-      if (liveSection) show(liveSection, false);
-      if (tbody) tbody.innerHTML = '';
-      
-      const progressSection = $('signalhire-progress');
-      const validatedSpan = $('signalhire-count-found');
-      const totalSpan = $('signalhire-count-total');
-      const fillBar = $('signalhire-fill');
-      const phaseSpan = $('signalhire-phase');
-      
+      if (btn) btn.disabled = true;
+      if (btnSpan) setText(btnSpan, 'Searching...');
+      show(ledgerSection, false);
+      show(railSection, false);
+      if (railOl) railOl.innerHTML = '';
+
+      const progressSection = getEl('signalhire-progress');
+      const countFoundSpan = getEl('signalhire-count-found');
+      const fillBar = getEl('signalhire-fill');
+      const phaseSpan = getEl('signalhire-phase');
+
       if (progressSection) {
         show(progressSection, true);
-        setText(validatedSpan, '0');
-        setText(totalSpan, '0');
+        setText(countFoundSpan, '0');
         setText(phaseSpan, 'Searching');
-        fillBar.style.width = '0%';
+        if (fillBar) fillBar.style.width = '100%';
       }
-      
+
       const onProgress = (accumulatedResults, isDone, totalCount) => {
         lastResults = accumulatedResults;
-        
-        if (totalCount !== undefined && progressSection) {
-           setText(totalSpan, String(totalCount));
-           const val = accumulatedResults.length;
-           setText(validatedSpan, String(val));
-           if (totalCount > 0) {
-              const pct = Math.min(100, Math.round((val / totalCount) * 100));
-              fillBar.style.width = pct + '%';
-           }
+
+        if (countFoundSpan) {
+          setText(countFoundSpan, String(accumulatedResults.length));
         }
-        
-        if (accumulatedResults.length > 0) {
-          show(resultsContainer, true);
-        }
-        renderResults(accumulatedResults);
-        updateLiveFeed(accumulatedResults);
-        
+
+        renderRail(accumulatedResults);
+        renderLedger();
+
         if (isDone && progressSection) {
-           setText(phaseSpan, 'Done');
-           fillBar.style.width = '100%';
+          setText(phaseSpan, 'Completed');
         }
       };
-      
+
       const response = await API.crawlSignalHire(companyVal, onProgress);
-      const results = response.results || [];
+      const results = response.results || lastResults;
       lastResults = results;
-      
+
       if (results.length === 0) {
         setText(errorEl, `No employees found for "${companyVal}".`);
         show(errorEl, true);
         if (progressSection) show(progressSection, false);
-        if (liveSection) show(liveSection, false);
       } else {
-        renderResults(results);
-        updateLiveFeed(results);
-        show(resultsContainer, true);
+        renderRail(results);
+        renderLedger();
         setExportEnabled(true);
       }
     } catch (err) {
       setText(errorEl, err.message || 'SignalHire search failed');
       show(errorEl, true);
-      const progressSection = $('signalhire-progress');
+      const progressSection = getEl('signalhire-progress');
       if (progressSection) show(progressSection, false);
-      if (liveSection) show(liveSection, false);
     } finally {
-      btn.disabled = false;
-      setText(btnSpan, 'Find Employees');
+      if (btn) btn.disabled = false;
+      if (btnSpan) setText(btnSpan, 'Find Employees');
+      await loadSignalHireHistory();
     }
   }
 
+  let historyPollTimer = null;
+
   async function loadSignalHireHistory() {
-    const tablewrap = $('signalhire-history-tablewrap');
-    const rowsEl = $('signalhire-history-rows');
-    const emptyEl = $('signalhire-history-empty');
-    const noteEl = $('signalhire-history-note');
+    const tablewrap = getEl('signalhire-history-tablewrap');
+    const rowsEl = getEl('signalhire-history-rows');
+    const emptyEl = getEl('signalhire-history-empty');
+    const noteEl = getEl('signalhire-history-note');
     if (!rowsEl) return;
-    
+
     try {
       const response = await fetch('/api/signalhire/history');
       if (!response.ok) return;
       const data = await response.json();
-      
+
       rowsEl.innerHTML = '';
       if (!data || data.length === 0) {
         if (tablewrap) show(tablewrap, false);
@@ -283,45 +316,59 @@ const SignalHire = (() => {
         if (noteEl) setText(noteEl, '');
         return;
       }
-      
+
       if (tablewrap) show(tablewrap, true);
       show(emptyEl, false);
       if (noteEl) setText(noteEl, `${data.length} search(es) logged`);
-      
+
+      let hasRunning = false;
+
       data.forEach(item => {
         const tr = document.createElement('tr');
-        
         const timestamp = new Date(item.created_at).toLocaleString();
-        
-        // 1. Date & Time
+
+        // 1. Started
         const tdDate = document.createElement('td');
         tdDate.className = 'cell-mono';
         setText(tdDate, timestamp);
         tr.appendChild(tdDate);
-        
-        // 2. Company Query
+
+        // 2. Company / Input
         const tdComp = document.createElement('td');
         tdComp.style.fontWeight = '500';
         setText(tdComp, item.company_input);
         tr.appendChild(tdComp);
-        
-        // 3. Employees Found
+
+        // 3. Status
+        const tdStatus = document.createElement('td');
+        const st = (item.status || 'completed').toLowerCase();
+        if (st === 'running') {
+          hasRunning = true;
+          tdStatus.innerHTML = '<span class="statusdot" data-state="running"></span> Running...';
+        } else if (st === 'failed') {
+          tdStatus.innerHTML = '<span class="statusdot" data-state="error"></span> Failed';
+        } else {
+          tdStatus.innerHTML = '<span class="statusdot" data-state="done"></span> Completed';
+        }
+        tr.appendChild(tdStatus);
+
+        // 4. Employees Found
         const tdCount = document.createElement('td');
         tdCount.className = 'col-num cell-mono';
         setText(tdCount, String(item.total_employees));
         tr.appendChild(tdCount);
-        
-        // 4. Actions
+
+        // 5. Actions
         const tdActions = document.createElement('td');
         tdActions.style.textAlign = 'right';
-        
+
         const wrap = document.createElement('div');
         wrap.className = 'history__actions';
         wrap.style.display = 'inline-flex';
         wrap.style.gap = '0.4rem';
         wrap.style.justifyContent = 'flex-end';
-        
-        if (item.has_results) {
+
+        if (item.has_results || item.total_employees > 0 || st === 'running') {
           const loadBtn = document.createElement('button');
           loadBtn.type = 'button';
           loadBtn.className = 'btn btn--ghost btn--tiny';
@@ -344,38 +391,48 @@ const SignalHire = (() => {
           xlsxLink.download = `signalhire_${item.company_input}.xlsx`;
           wrap.appendChild(xlsxLink);
         }
-        
+
         tdActions.appendChild(wrap);
         tr.appendChild(tdActions);
-        
+
         rowsEl.appendChild(tr);
       });
+
+      if (hasRunning) {
+        if (historyPollTimer) clearTimeout(historyPollTimer);
+        historyPollTimer = setTimeout(loadSignalHireHistory, 3000);
+      }
     } catch (err) {
       console.error('Failed to load SignalHire history', err);
     }
   }
 
   function init() {
-    const form = $('signalhire-form');
+    const form = getEl('signalhire-form');
     if (form) {
-      form.addEventListener('submit', async (e) => {
-        await submitCrawl(e);
-        await loadSignalHireHistory();
+      form.addEventListener('submit', submitCrawl);
+    }
+
+    const searchInput = getEl('signalhire-search');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        currentSearchQuery = e.target.value;
+        renderLedger();
       });
     }
-    
-    const btnCsv = $('signalhire-export-csv');
-    if (btnCsv) {
-      btnCsv.disabled = true;
-      btnCsv.addEventListener('click', () => downloadExport('csv'));
-    }
-    
-    const btnXlsx = $('signalhire-export-xlsx');
-    if (btnXlsx) {
-      btnXlsx.disabled = true;
-      btnXlsx.addEventListener('click', () => downloadExport('xlsx'));
-    }
-    
+
+    const exportCsv = getEl('signalhire-export-csv');
+    if (exportCsv) exportCsv.addEventListener('click', () => downloadExport('csv'));
+
+    const exportXlsx = getEl('signalhire-export-xlsx');
+    if (exportXlsx) exportXlsx.addEventListener('click', () => downloadExport('xlsx'));
+
+    const liveCsv = getEl('signalhire-live-csv');
+    if (liveCsv) liveCsv.addEventListener('click', () => downloadExport('csv'));
+
+    const liveXlsx = getEl('signalhire-live-xlsx');
+    if (liveXlsx) liveXlsx.addEventListener('click', () => downloadExport('xlsx'));
+
     loadSignalHireHistory();
   }
 

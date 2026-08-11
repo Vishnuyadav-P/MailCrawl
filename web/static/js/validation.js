@@ -238,6 +238,8 @@ const Validation = (() => {
     }
   }
 
+  let historyPollTimer = null;
+
   async function loadValidationHistory() {
     const tablewrap = $('validation-history-tablewrap');
     const rowsEl = $('validation-history-rows');
@@ -262,12 +264,13 @@ const Validation = (() => {
       show(emptyEl, false);
       if (noteEl) setText(noteEl, `${data.length} validation run(s) logged`);
       
+      let hasRunning = false;
+
       data.forEach(item => {
         const tr = document.createElement('tr');
-        
         const timestamp = new Date(item.created_at).toLocaleString();
         
-        // 1. Date & Time
+        // 1. Started
         const tdDate = document.createElement('td');
         tdDate.className = 'cell-mono';
         setText(tdDate, timestamp);
@@ -279,13 +282,26 @@ const Validation = (() => {
         setText(tdFile, item.filename);
         tr.appendChild(tdFile);
         
-        // 3. Total Emails
+        // 3. Status
+        const tdStatus = document.createElement('td');
+        const st = (item.status || 'completed').toLowerCase();
+        if (st === 'running') {
+          hasRunning = true;
+          tdStatus.innerHTML = '<span class="statusdot" data-state="running"></span> Running...';
+        } else if (st === 'failed') {
+          tdStatus.innerHTML = '<span class="statusdot" data-state="error"></span> Failed';
+        } else {
+          tdStatus.innerHTML = '<span class="statusdot" data-state="done"></span> Completed';
+        }
+        tr.appendChild(tdStatus);
+
+        // 4. Total Emails
         const tdCount = document.createElement('td');
         tdCount.className = 'col-num cell-mono';
         setText(tdCount, String(item.total_emails));
         tr.appendChild(tdCount);
         
-        // 4. Actions
+        // 5. Actions
         const tdActions = document.createElement('td');
         tdActions.style.textAlign = 'right';
         
@@ -295,7 +311,7 @@ const Validation = (() => {
         wrap.style.gap = '0.4rem';
         wrap.style.justifyContent = 'flex-end';
         
-        if (item.has_results) {
+        if (item.has_results || item.total_emails > 0 || st === 'running') {
           const loadBtn = document.createElement('button');
           loadBtn.type = 'button';
           loadBtn.className = 'btn btn--ghost btn--tiny';
@@ -324,6 +340,11 @@ const Validation = (() => {
         
         rowsEl.appendChild(tr);
       });
+
+      if (hasRunning) {
+        if (historyPollTimer) clearTimeout(historyPollTimer);
+        historyPollTimer = setTimeout(loadValidationHistory, 3000);
+      }
     } catch (err) {
       console.error('Failed to load validation history', err);
     }
@@ -361,3 +382,4 @@ const Validation = (() => {
 })();
 
 document.addEventListener('DOMContentLoaded', Validation.init);
+

@@ -549,7 +549,7 @@
             </div>
           </section>
           
-          <div class="tablewrap" id="validate-results" hidden style="margin-top: 1rem; margin-bottom: 2rem;">
+          <div class="tablewrap" id="validate-results" hidden style="margin-top: 1.5rem; margin-bottom: 2rem;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
               <h3>Results</h3>
               <div class="exports">
@@ -574,16 +574,17 @@
           </div>
           
           <div class="history" id="validation-history-section" style="margin-top: 3rem;">
-            <div class="section__head" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-              <h2 class="section__title" style="margin: 0;">Validation History</h2>
-              <p class="history__note" id="validation-history-note" style="margin: 0; font-size: var(--step--1); color: var(--muted);"></p>
+            <div class="section__head">
+              <h2 class="section__title">Validation History</h2>
+              <p class="section__note" id="validation-history-note"></p>
             </div>
             <div class="tablewrap" id="validation-history-tablewrap">
               <table class="ledger__table">
                 <thead>
                   <tr>
-                    <th scope="col">Date &amp; Time</th>
+                    <th scope="col">Started</th>
                     <th scope="col">File Name</th>
+                    <th scope="col">Status</th>
                     <th scope="col" class="col-num">Total Emails</th>
                     <th scope="col" style="text-align: right;">Actions</th>
                   </tr>
@@ -620,70 +621,83 @@
             <div class="frontier__head">
               <span class="frontier__phase" id="signalhire-phase">Searching</span>
               <span class="frontier__count">
-                <b id="signalhire-count-found">0</b> <i>/</i>
-                <span id="signalhire-count-total">0</span> employees
+                <b id="signalhire-count-found">0</b> employees extracted
               </span>
             </div>
             <div class="frontier__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="signalhire-bar">
-              <div class="frontier__fill" id="signalhire-fill"></div>
+              <div class="frontier__fill" id="signalhire-fill" style="width: 100%;"></div>
             </div>
           </section>
           
-          <!-- Structured SignalHire Dashboard (Live Feed + Extracted Results) -->
-          <div class="sh-dashboard-grid" id="signalhire-dashboard" style="display: grid; grid-template-columns: minmax(280px, 340px) 1fr; gap: 1.5rem; margin-top: 1.5rem; align-items: start;">
-            
-            <!-- Left Column: SignalHire Live Feed (Recent 10 details) -->
-            <section class="rail-section" id="signalhire-live-feed-section" hidden style="margin: 0; position: sticky; top: 1rem;">
-              <div class="section__head" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem;">
-                <div>
-                  <h2 class="section__title" style="display: inline-flex; align-items: center; gap: 0.5rem; margin: 0; font-size: 1.05rem;">
-                    <span class="live-dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 10px #10b981;"></span>
-                    Live Feed (Recent 10)
-                  </h2>
-                  <p class="section__note" style="margin: 0; font-size: var(--step--1); color: var(--muted);">Real-time stream of extracted profiles</p>
-                </div>
-                <span id="signalhire-live-count" style="font-family: var(--font-mono); font-size: var(--step--2); color: #10b981; font-weight: 600;">0 so far</span>
+          <!-- SignalHire Live Feed Rail (Full-Width Stacked, matching Domain Scanner) -->
+          <section class="rail-section" id="signalhire-rail-section" hidden style="margin-top: 1.5rem;" aria-label="Live extracted profiles">
+            <div class="section__head">
+              <div>
+                <h2 class="section__title">Live</h2>
+                <p class="section__note" id="signalhire-rail-note">Profiles appear in real-time as they are extracted.</p>
               </div>
-              <ul class="sh-live-feed" id="signalhire-live-feed" aria-live="polite"></ul>
-            </section>
-            
-            <!-- Right Column: Extracted Employees Table -->
-            <div class="tablewrap" id="signalhire-results" hidden style="margin: 0;">
-              <div class="section__head" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <div>
-                  <h2 class="section__title" style="margin: 0;">Extracted Employees</h2>
-                  <p class="history__note" id="signalhire-results-count" style="margin: 0; font-size: var(--step--1); color: var(--muted);"></p>
-                </div>
-                <div class="exports">
-                  <button type="button" class="btn btn--ghost" id="signalhire-export-csv">Download CSV</button>
-                  <button type="button" class="btn btn--ghost" id="signalhire-export-xlsx">Download Excel</button>
-                </div>
+              <div class="exports exports--live" id="signalhire-live-exports">
+                <button type="button" class="btn btn--ghost btn--sm" id="signalhire-live-csv">Download CSV</button>
+                <button type="button" class="btn btn--ghost btn--sm" id="signalhire-live-xlsx">Download Excel</button>
               </div>
+            </div>
+
+            <ol class="rail" id="signalhire-rail" aria-live="polite" aria-relevant="additions"></ol>
+
+            <p class="rail__empty" id="signalhire-rail-empty">Nothing yet. The rail fills as profiles surface.</p>
+          </section>
+          
+          <!-- SignalHire Ledger (Full-Width Stacked, matching Domain Scanner & Batch Validate) -->
+          <section class="ledger" id="signalhire-ledger-section" hidden style="margin-top: 1.5rem;" aria-label="Extracted employees ledger">
+            <div class="section__head">
+              <h2 class="section__title">Ledger</h2>
+              <p class="section__note">
+                <b id="signalhire-ledger-count">0</b> of <span id="signalhire-ledger-total">0</span> profiles
+              </p>
+            </div>
+
+            <div class="filters">
+              <div class="filters__search" style="flex: 1;">
+                <label class="sr-only" for="signalhire-search">Search employees and titles</label>
+                <input type="search" id="signalhire-search" placeholder="Search employee name or job title..." spellcheck="false" />
+              </div>
+            </div>
+
+            <div class="tablewrap" id="signalhire-results">
               <table class="ledger__table">
                 <thead>
                   <tr>
                     <th scope="col" class="col-num">#</th>
                     <th scope="col">Name</th>
                     <th scope="col">Job Title</th>
+                    <th scope="col">Source</th>
                   </tr>
                 </thead>
                 <tbody id="signalhire-rows"></tbody>
               </table>
             </div>
 
-          </div>
+            <p class="ledger__empty" id="signalhire-empty" hidden>No profiles match your search.</p>
+
+            <div class="exports" style="margin-top: 1rem;">
+              <button type="button" class="btn btn--ghost" id="signalhire-export-csv">Download CSV</button>
+              <button type="button" class="btn btn--ghost" id="signalhire-export-xlsx">Download Excel</button>
+            </div>
+          </section>
           
+          <!-- Search History -->
           <div class="history" id="signalhire-history-section" style="margin-top: 3rem;">
-            <div class="section__head" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-              <h2 class="section__title" style="margin: 0;">Search History</h2>
-              <p class="history__note" id="signalhire-history-note" style="margin: 0; font-size: var(--step--1); color: var(--muted);"></p>
+            <div class="section__head">
+              <h2 class="section__title">Search History</h2>
+              <p class="section__note" id="signalhire-history-note"></p>
             </div>
             <div class="tablewrap" id="signalhire-history-tablewrap">
               <table class="ledger__table">
                 <thead>
                   <tr>
-                    <th scope="col">Date &amp; Time</th>
+                    <th scope="col">Started</th>
                     <th scope="col">Company / Input</th>
+                    <th scope="col">Status</th>
                     <th scope="col" class="col-num">Employees Found</th>
                     <th scope="col" style="text-align: right;">Actions</th>
                   </tr>

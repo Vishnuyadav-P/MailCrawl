@@ -2,8 +2,8 @@
 Playwright headless Chromium fetcher for JavaScript-rendered web pages.
 """
 
-from typing import Optional
 import asyncio
+from typing import Optional
 
 from src.utils.config import Config
 from src.utils.logging import logger

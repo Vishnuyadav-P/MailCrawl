@@ -3,8 +3,8 @@ Structured logging module.
 """
 
 import logging
-from pathlib import Path
 import sys
+from pathlib import Path
 
 
 def setup_logger(name: str = "MailCrawl") -> logging.Logger:
@@ -27,9 +27,7 @@ logger = setup_logger()
 
 def create_scan_file_logger(scan_id: str, target_domain: str) -> tuple[logging.Logger, Path]:
     """Creates a per-scan file logger with domain and timestamp in its filename."""
-    from datetime import datetime
-    from pathlib import Path
-    from src.utils.scan_store import scan_dir, get_scan_log_filename
+    from src.utils.scan_store import get_scan_log_filename, scan_dir
 
     log_file_name = get_scan_log_filename(scan_id, target_domain)
     log_file_path = scan_dir(scan_id) / log_file_name

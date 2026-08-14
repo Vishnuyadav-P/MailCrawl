@@ -1,31 +1,31 @@
-from typing import List, Dict, Any
+import asyncio
 import csv
 import io
-import openpyxl
-import asyncio
 import json
-from datetime import datetime
+from typing import Any, List, Set
+
+import openpyxl
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from src.crawler.signalhire_crawler import crawl_signalhire_employees_generator
 from src.models.signalhire import SignalHireEmployee
-from src.crawler.signalhire_crawler import (
-    crawl_signalhire_employees,
-    crawl_signalhire_employees_generator,
-)
-from src.utils.signalhire_store import (
-    new_signalhire_id,
-    save_signalhire_run,
-    read_signalhire_log,
-    load_signalhire_results,
-)
 from src.utils.logging import logger
+from src.utils.signalhire_store import (
+    load_signalhire_results,
+    new_signalhire_id,
+    read_signalhire_log,
+    save_signalhire_run,
+)
+from web import settings
+from web.jobs.batch import BatchJob, signalhire_registry
 
 router = APIRouter(prefix="/api/signalhire", tags=["signalhire"])
 
-# Active background SignalHire jobs dictionary
-active_signalhire: Dict[str, Dict[str, Any]] = {}
+# See the note in web/routes/validate.py — asyncio keeps only a weak reference to
+# a running task, so it needs an anchor until it completes.
+_background_tasks: Set[asyncio.Task] = set()
 
 
 class CrawlRequest(BaseModel):
@@ -37,89 +37,97 @@ class ExportRequest(BaseModel):
     format: str
 
 
-async def run_signalhire_job(crawl_id: str, company_input: str) -> None:
-    """Background worker task for SignalHire profile crawling."""
-    job = active_signalhire.get(crawl_id)
-    if not job:
-        return
+def _notify(job: BatchJob, payload: Any) -> None:
+    """Pushes one NDJSON line, or None as the end-of-stream token, to every listener."""
+    for queue in list(job.listeners):
+        try:
+            queue.put_nowait(payload)
+        except Exception:
+            pass
 
-    all_accumulated: List[Dict[str, Any]] = []
+
+async def run_signalhire_job(job: BatchJob) -> None:
+    """Background worker task for SignalHire profile crawling."""
+    loop = asyncio.get_running_loop()
 
     def producer():
         try:
-            for page_batch in crawl_signalhire_employees_generator(company_input):
+            for page_batch in crawl_signalhire_employees_generator(job.label):
                 dict_batch = [emp.model_dump() for emp in page_batch]
-                all_accumulated.extend(dict_batch)
-                job["processed"] = len(all_accumulated)
-                job["results"] = list(all_accumulated)
+                processed = job.extend(dict_batch)
 
                 payload = json.dumps({
                     "results": dict_batch,
-                    "processed": len(all_accumulated)
+                    "processed": processed,
                 }) + "\n"
 
-                for q in list(job["listeners"]):
-                    try:
-                        q.put_nowait(payload)
-                    except Exception:
-                        pass
+                # The crawl runs on a worker thread but the listener queues belong
+                # to the event loop, and asyncio.Queue is not thread-safe. Hopping
+                # back across is what makes this safe rather than merely lucky.
+                loop.call_soon_threadsafe(_notify, job, payload)
         except Exception as exc:
-            job["error"] = str(exc)
-            logger.error(f"SignalHire background crawl '{crawl_id}' error: {exc}")
-        finally:
-            job["status"] = "completed" if not job.get("error") else "failed"
-            save_signalhire_run(crawl_id, company_input, all_accumulated)
-            job["finished"] = True
-            for q in list(job["listeners"]):
-                try:
-                    q.put_nowait(None)
-                except Exception:
-                    pass
+            job.error = str(exc)
+            logger.error(f"SignalHire background crawl '{job.job_id}' error: {exc}")
 
-    await asyncio.to_thread(producer)
+    try:
+        await asyncio.to_thread(producer)
+    finally:
+        job.mark_terminal("failed" if job.error else "completed")
+        await asyncio.to_thread(save_signalhire_run, job.job_id, job.label, job.results)
+        job.finished = True
+        _notify(job, None)
 
 
 @router.post("/crawl")
 async def crawl_signalhire(req: CrawlRequest):
-    """Crawl employees associated with a company name, domain, or SignalHire URL in background."""
+    """Crawl employees associated with a company name, domain, or SignalHire URL."""
     company_input = req.company.strip()
     if not company_input:
         raise HTTPException(status_code=400, detail="Company name, domain, or URL is required")
 
+    if not signalhire_registry.has_capacity():
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=(
+                f"SignalHire crawl capacity is full "
+                f"({signalhire_registry.max_concurrent} running). Try again shortly."
+            ),
+        )
+
     crawl_id = new_signalhire_id(company_input)
+    job = BatchJob(job_id=crawl_id, kind="signalhire", label=company_input)
+    signalhire_registry.add(job)
 
-    job = {
-        "id": crawl_id,
-        "company_input": company_input,
-        "status": "running",
-        "processed": 0,
-        "results": [],
-        "created_at": datetime.now().isoformat(),
-        "finished": False,
-        "listeners": set(),
-    }
-    active_signalhire[crawl_id] = job
-
-    # Launch background crawling task independent of HTTP connection
-    asyncio.create_task(run_signalhire_job(crawl_id, company_input))
+    # Launch background crawling independent of the HTTP connection.
+    task = asyncio.create_task(run_signalhire_job(job))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
     async def generate_results():
         q: asyncio.Queue = asyncio.Queue()
-        job["listeners"].add(q)
+        job.listeners.add(q)
         try:
-            yield json.dumps({"crawl_id": crawl_id, "processed": job["processed"], "results": job["results"]}) + "\n"
-            while not job["finished"]:
+            yield json.dumps({
+                "crawl_id": crawl_id,
+                "processed": job.processed,
+                "results": job.results,
+            }) + "\n"
+            while not job.finished:
                 msg = await q.get()
                 if msg is None:
                     break
                 yield msg
         finally:
-            job["listeners"].discard(q)
+            job.listeners.discard(q)
 
     return StreamingResponse(generate_results(), media_type="application/x-ndjson")
 
 
-def _build_export_stream(results: List[SignalHireEmployee], format: str, filename_prefix: str = "signalhire_employees"):
+def _build_export_stream(
+    results: List[SignalHireEmployee],
+    format: str,
+    filename_prefix: str = "signalhire_employees",
+):
     if format == "csv":
         output = io.StringIO()
         writer = csv.writer(output)
@@ -157,6 +165,11 @@ def _build_export_stream(results: List[SignalHireEmployee], format: str, filenam
 async def export_signalhire(req: ExportRequest):
     if req.format not in ("csv", "xlsx"):
         raise HTTPException(status_code=400, detail="Invalid format")
+    if len(req.results) > settings.MAX_EXPORT_ROWS:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Export is limited to {settings.MAX_EXPORT_ROWS} rows.",
+        )
     return _build_export_stream(req.results, req.format)
 
 
@@ -166,18 +179,18 @@ async def get_signalhire_history():
     log_map = {item["id"]: item for item in history_logs}
 
     active_items = []
-    for crawl_id, job in active_signalhire.items():
-        if crawl_id not in log_map:
+    for job in signalhire_registry.all():
+        if job.job_id not in log_map:
             active_items.append({
-                "id": crawl_id,
-                "company_input": job["company_input"],
-                "total_employees": job["processed"],
-                "created_at": job["created_at"],
-                "status": job["status"],
+                "id": job.job_id,
+                "company_input": job.label,
+                "total_employees": job.processed,
+                "created_at": job.created_at.isoformat(),
+                "status": job.status,
                 "has_results": True,
             })
         else:
-            log_map[crawl_id]["status"] = job["status"]
+            log_map[job.job_id]["status"] = job.status
 
     for item in history_logs:
         if "status" not in item:
@@ -188,19 +201,21 @@ async def get_signalhire_history():
 
 @router.get("/history/{crawl_id}/results")
 async def get_historical_signalhire_results(crawl_id: str):
-    if crawl_id in active_signalhire:
-        job = active_signalhire[crawl_id]
+    job = signalhire_registry.get(crawl_id)
+    if job:
         return {
             "id": crawl_id,
-            "company_input": job["company_input"],
-            "total_employees": job["processed"],
-            "created_at": job["created_at"],
-            "status": job["status"],
-            "results": job["results"],
+            "company_input": job.label,
+            "total_employees": job.processed,
+            "created_at": job.created_at.isoformat(),
+            "status": job.status,
+            "results": job.results,
         }
     data = load_signalhire_results(crawl_id)
     if not data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Crawl record not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Crawl record not found"
+        )
     return data
 
 
@@ -208,10 +223,12 @@ async def get_historical_signalhire_results(crawl_id: str):
 async def export_historical_signalhire(crawl_id: str, format: str):
     if format not in ("csv", "xlsx"):
         raise HTTPException(status_code=400, detail="Invalid format")
+
     data = load_signalhire_results(crawl_id)
-    if not data and crawl_id in active_signalhire:
-        job = active_signalhire[crawl_id]
-        data = {"results": job["results"]}
+    if not data:
+        job = signalhire_registry.get(crawl_id)
+        if job:
+            data = {"results": job.results}
 
     if not data or "results" not in data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Crawl data not found")
@@ -219,4 +236,3 @@ async def export_historical_signalhire(crawl_id: str, format: str):
     results = [SignalHireEmployee(**item) for item in data["results"]]
     clean_prefix = f"signalhire_{crawl_id}"
     return _build_export_stream(results, format, filename_prefix=clean_prefix)
-

@@ -3,17 +3,18 @@ Domain validation, MX record lookup, and SSRF security protection.
 """
 
 import ipaddress
+import smtplib
 import socket
+from datetime import datetime, timezone
 from functools import lru_cache
 from urllib.parse import urlparse
 
 import dns.resolver
 import tldextract
 
-from src.utils.logging import logger
-from src.validation.email_validator import is_valid_email_syntax, is_false_positive_email
 from src.models.email import EmailVerification
-from datetime import datetime, timezone
+from src.utils.logging import logger
+from src.validation.email_validator import is_false_positive_email, is_valid_email_syntax
 
 PROHIBITED_IP_NETWORKS = [
     ipaddress.ip_network("0.0.0.0/8"),
@@ -199,7 +200,6 @@ def validate_email_for_domain(email: str, target_registered_domain: str) -> tupl
 ROLE_PREFIXES = {"admin", "billing", "careers", "contact", "help", "hr", "info", "legal", "privacy", "sales", "security", "support"}
 DISPOSABLE_DOMAINS = {"mailinator.com", "guerrillamail.com", "10minutemail.com", "tempmail.com"}
 
-import smtplib
 
 @lru_cache(maxsize=1024)
 def check_smtp_mailbox(email: str, host: str) -> tuple[str, str]:

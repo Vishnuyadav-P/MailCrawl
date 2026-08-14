@@ -3,6 +3,7 @@ Email syntax validation and false positive filtering module.
 """
 
 import re
+from functools import lru_cache
 
 import tldextract
 
@@ -40,8 +41,6 @@ PLACEHOLDER_EMAILS = {
     "test@test.com", "email@domain.com", "user@domain.com"
 }
 
-
-from functools import lru_cache
 
 @lru_cache(maxsize=8192)
 def is_valid_email_syntax(email: str) -> bool:

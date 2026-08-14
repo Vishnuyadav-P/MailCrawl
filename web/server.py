@@ -12,14 +12,16 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from src.models.scan import ScanConfig
 from src.utils.logging import logger
 from web import settings
+from web.auth import BasicAuthMiddleware, check_auth_config
 from web.jobs.cleanup import cleanup_loop
 from web.jobs.registry import registry
-from web.services import schedules as schedule_store, store
 from web.jobs.runner import build_job, start_job
-from src.models.scan import ScanConfig
-from web.routes import history, results, scans, stream, schedules, validate, signalhire
+from web.routes import history, results, scans, schedules, signalhire, stream, validate
+from web.services import schedules as schedule_store
+from web.services import store
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -74,11 +76,17 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
+    check_auth_config()
+
     app = FastAPI(
         title="MailCrawl",
         version="1.0.0",
         lifespan=lifespan,
     )
+
+    # Added before any route or mount so it covers all of them — including /docs,
+    # /openapi.json and the static UI, which a route dependency would miss.
+    app.add_middleware(BasicAuthMiddleware)
 
     app.include_router(scans.router)
     app.include_router(stream.router)

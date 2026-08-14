@@ -1,9 +1,11 @@
-import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
 from src.crawler.crawler import AsyncCrawler
-from src.models.scan import ScanConfig, ScanStats
-from src.models.email import EmailOccurrence, CanonicalEmailResult
+from src.models.email import EmailOccurrence
+from src.models.scan import ScanConfig
 from web.jobs.registry import JobState, registry
 from web.routes.results import _load_scan_payload, export_csv, export_xlsx
 

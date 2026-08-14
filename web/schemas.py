@@ -7,8 +7,31 @@ definition to keep in sync.
 """
 
 from typing import List, Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, Field
+from croniter import croniter
+from pydantic import BaseModel, Field, field_validator
+
+
+def _validate_cron(value: str) -> str:
+    """
+    Rejects a malformed cron here rather than letting croniter raise downstream.
+
+    The store computes the next run time while building the row, so an invalid
+    expression used to surface as a 500 from an ordinary bad request.
+    """
+    if not croniter.is_valid(value):
+        raise ValueError(f"'{value}' is not a valid cron expression")
+    return value
+
+
+def _validate_timezone(value: str) -> str:
+    """Same reasoning as the cron check: an unknown zone is a 422, not a 500."""
+    try:
+        ZoneInfo(value)
+    except (ZoneInfoNotFoundError, ValueError) as exc:
+        raise ValueError(f"'{value}' is not a known IANA time zone") from exc
+    return value
 
 
 class ScanConfigInput(BaseModel):
@@ -49,10 +72,15 @@ class ScheduleInput(BaseModel):
     target_domain: str = Field(..., min_length=1)
     search_name: Optional[str] = None
     scan_config: ScanConfigInput = Field(default_factory=ScanConfigInput)
-    cron: str = Field(default="0 9 * * 1", min_length=9, max_length=100)
+    # No min_length: croniter decides what is valid, and a character count would
+    # only reject shorthands like "@daily" that it accepts.
+    cron: str = Field(default="0 9 * * 1", min_length=1, max_length=100)
     timezone: str = Field(default="UTC", max_length=64)
     enabled: bool = True
     notification_url: Optional[str] = None
+
+    _check_cron = field_validator("cron")(_validate_cron)
+    _check_timezone = field_validator("timezone")(_validate_timezone)
 
 
 class ScheduleUpdate(BaseModel):
@@ -62,3 +90,13 @@ class ScheduleUpdate(BaseModel):
     timezone: Optional[str] = None
     enabled: Optional[bool] = None
     notification_url: Optional[str] = None
+
+    @field_validator("cron")
+    @classmethod
+    def _check_cron(cls, value: Optional[str]) -> Optional[str]:
+        return _validate_cron(value) if value is not None else value
+
+    @field_validator("timezone")
+    @classmethod
+    def _check_timezone(cls, value: Optional[str]) -> Optional[str]:
+        return _validate_timezone(value) if value is not None else value

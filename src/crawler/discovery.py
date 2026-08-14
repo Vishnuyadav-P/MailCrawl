@@ -2,8 +2,8 @@
 URL Discovery and sitemap parsing module.
 """
 
-from typing import List, Optional, Set, Tuple
 import asyncio
+from typing import List, Optional, Set, Tuple
 
 import httpx
 from bs4 import BeautifulSoup, FeatureNotFound

@@ -1,11 +1,13 @@
+import http.cookiejar
+import random
 import re
 import time
-import random
-import urllib.request
 import urllib.parse
-import http.cookiejar
+import urllib.request
+from typing import Generator, List, Tuple
+
 from bs4 import BeautifulSoup
-from typing import List, Tuple, Generator
+
 from src.models.signalhire import SignalHireEmployee
 from src.utils.logging import logger
 

@@ -72,15 +72,21 @@ docker run -p 8000:8000 -v scan-data:/data --shm-size=1g domain-email-intelligen
 The image installs Chromium and its system libraries, runs as an unprivileged user,
 and exposes `/api/health` for orchestrator health checks.
 
-**Three things a deployment must get right:**
+**Four things a deployment must get right:**
 
-1. **One worker per container.** The job registry, SSE fan-out and live feed are
+1. **Turn authentication on.** Every endpoint serves harvested contact data, so an
+   unauthenticated deployment is a data leak rather than merely an open API. Set
+   `MAILCRAWL_AUTH_ENABLED=true` with `MAILCRAWL_USER` and `MAILCRAWL_PASSWORD`; the
+   server refuses to start if it is enabled without both. The compose file enables it
+   by default and will not start without credentials in your `.env`. `/api/health`
+   stays open so an orchestrator can still probe liveness.
+2. **One worker per container.** The job registry, SSE fan-out and live feed are
    per-process state. `--workers 2` would let a client's stream request land on a
    process that has never heard of their scan. Scale out with more containers behind
    a proxy with sticky sessions, not with more workers.
-2. **Mount a volume at `DATA_DIR`.** Without it, a container restart loses the scan
+3. **Mount a volume at `DATA_DIR`.** Without it, a container restart loses the scan
    log and every resumable checkpoint.
-3. **Give Chromium shared memory and a shutdown grace period.** Docker's default
+4. **Give Chromium shared memory and a shutdown grace period.** Docker's default
    64 MB `/dev/shm` crashes Chromium on content-heavy pages, and its 10-second stop
    timeout can kill a scan before it finishes checkpointing. The compose file sets
    `shm_size: 1gb` and `stop_grace_period: 45s`.
@@ -106,14 +112,25 @@ port instead of scanning for a free one.
 All settings are environment variables with working defaults; see `.env.example` for
 the full annotated list. The ones that matter most in production:
 
-| Variable                     | Default | What it does                                  |
-| ---------------------------- | ------- | --------------------------------------------- |
-| `DATA_DIR`                   | `data`  | Scan log, saved results, checkpoints          |
-| `MAX_CONCURRENT_SCANS`       | `2`     | Capped by Chromium memory, not the event loop |
-| `JOB_TTL_SECONDS`            | `3600`  | How long a finished scan stays in memory      |
-| `MAX_PDF_SIZE_MB`            | `150`   | Skip PDFs larger than this                    |
-| `SKIP_NON_PUBLIC_SUBDOMAINS` | `false` | Trade coverage for a faster scan              |
-| `SHUTDOWN_JOIN_SECONDS`      | `30.0`  | Grace period for scans to checkpoint on exit  |
+| Variable                     | Default | What it does                                    |
+| ---------------------------- | ------- | ----------------------------------------------- |
+| `MAILCRAWL_AUTH_ENABLED`     | `false` | HTTP Basic over every route, `/docs` and the UI |
+| `MAILCRAWL_USER`             | —       | Required when auth is enabled                   |
+| `MAILCRAWL_PASSWORD`         | —       | Required when auth is enabled                   |
+| `DATA_DIR`                   | `data`  | Scan log, saved results, checkpoints            |
+| `MAX_CONCURRENT_SCANS`       | `2`     | Capped by Chromium memory, not the event loop   |
+| `MAX_CONCURRENT_VALIDATIONS` | `3`     | Concurrent file-validation jobs                 |
+| `MAX_CONCURRENT_SIGNALHIRE`  | `3`     | Concurrent SignalHire crawls                    |
+| `MAX_UPLOAD_MB`              | `50`    | Ceiling on an uploaded validation file          |
+| `JOB_TTL_SECONDS`            | `3600`  | How long a finished scan stays in memory        |
+| `BATCH_JOB_TTL_SECONDS`      | `3600`  | How long a finished batch job stays in memory   |
+| `MAX_PDF_SIZE_MB`            | `150`   | Skip PDFs larger than this                      |
+| `SKIP_NON_PUBLIC_SUBDOMAINS` | `false` | Trade coverage for a faster scan                |
+| `SHUTDOWN_JOIN_SECONDS`      | `30.0`  | Grace period for scans to checkpoint on exit    |
+
+Crawl breadth is deliberately uncapped: `max_pages`, `max_depth`, `MAX_SUBDOMAINS`
+and `MAX_EXTERNAL_SOURCES` all default to `0`, meaning unlimited. Coverage is the
+goal — set them only when a scan needs to be cut short.
 
 ---
 
@@ -180,7 +197,7 @@ its own event loop while the server stays responsive.
 ```bash
 pip install -r requirements-dev.txt
 
-pytest                          # 192 tests
+pytest                          # 45 tests
 ruff check .                    # lint
 ruff check . --fix              # autofix
 ```
@@ -192,13 +209,22 @@ ruff check . --fix              # autofix
 
 ## Responsible crawling & security
 
-1. **Strictly public data.** Paywalls, CAPTCHAs and authentication are never
+1. **Authentication.** HTTP Basic over every route, `/docs` and the static UI, applied
+   as middleware so a newly added route cannot miss it. Credentials are compared in
+   constant time, and both halves are always compared so a wrong username is not
+   distinguishable from a wrong password by timing. Off by default for local work;
+   see the deployment notes above.
+2. **Strictly public data.** Paywalls, CAPTCHAs and authentication are never
    bypassed; a page behind a login wall is recorded as such and skipped.
-2. **robots.txt.** `Disallow` enforcement is a per-scan setting, but `Crawl-delay` is
+3. **robots.txt.** `Disallow` enforcement is a per-scan setting, but `Crawl-delay` is
    always honoured — that one protects the server being crawled.
-3. **SSRF protection.** Hostnames are resolved and checked against loopback, private,
+4. **SSRF protection.** Hostnames are resolved and checked against loopback, private,
    carrier-grade NAT and cloud metadata ranges (`169.254.169.254`) before any
    request. Verdicts are cached per host for the duration of a scan and cleared when
    the server goes idle.
-4. **Non-root container.** The headless browser renders untrusted pages, so it does
+5. **Resource ceilings.** Uploads are capped (`MAX_UPLOAD_MB`), export payloads are
+   capped (`MAX_EXPORT_ROWS`), and scans, validations and SignalHire crawls each have
+   their own concurrency cap returning `429` when full. Finished jobs of every kind
+   are evicted on a TTL rather than held for the life of the process.
+6. **Non-root container.** The headless browser renders untrusted pages, so it does
    not run as root.

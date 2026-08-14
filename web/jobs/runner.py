@@ -19,7 +19,7 @@ from typing import Optional
 from src.crawler.crawler import AsyncCrawler
 from src.models.scan import ScanConfig, ScanRecord
 from src.processing.deduplicator import deduplicate_and_process_emails
-from src.utils.logging import logger, create_scan_file_logger, cleanup_scan_logger
+from src.utils.logging import cleanup_scan_logger, create_scan_file_logger, logger
 from src.utils.urls import is_same_registered_domain
 from web.jobs.adapters import EmailBatchAdapter, ProgressAdapter
 from web.jobs.registry import JobState, ScanCancelled, registry

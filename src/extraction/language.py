@@ -14,8 +14,20 @@ LANGUAGE_KEYWORDS = {
     "careers": ("careers", "jobs", "karriere", "empleos", "採用", "求人", "करियर", "وظائف"),
 }
 
+# Fallback when neither the html[lang] attribute nor a Content-Language header
+# says anything: the script the page is written in. Ordered, and first match
+# wins, so a page mixing scripts reports the first one listed here.
+_SCRIPT_RANGES = (
+    (r"[ऀ-ॿ]", "hi"),
+    (r"[؀-ۿ]", "ar"),
+    (r"[぀-ヿ]", "ja"),
+    (r"[一-鿿]", "zh"),
+)
+
+
 class _LangParser(HTMLParser):
     lang = ""
+
     def handle_starttag(self, tag, attrs):
         if tag.lower() == "html":
             self.lang = dict(attrs).get("lang", "")
@@ -31,10 +43,9 @@ def detect_language(html: str, headers: dict | None = None) -> str:
     if value:
         return value.split(",")[0].strip().lower().split("-")[0]
     sample = re.sub(r"<[^>]+>", " ", html[:30_000])
-    if re.search(r"[\u0900-\u097f]", sample): return "hi"
-    if re.search(r"[\u0600-\u06ff]", sample): return "ar"
-    if re.search(r"[\u3040-\u30ff]", sample): return "ja"
-    if re.search(r"[\u4e00-\u9fff]", sample): return "zh"
+    for pattern, code in _SCRIPT_RANGES:
+        if re.search(pattern, sample):
+            return code
     return "unknown"
 
 def priority_keywords() -> Iterable[str]:

@@ -30,6 +30,27 @@ def _float(name: str, default: float) -> float:
         return default
 
 
+def _bool(name: str, default: bool) -> bool:
+    return os.getenv(name, str(default)).strip().lower() in {"1", "true", "yes", "on"}
+
+
+# --------------------------------------------------------------------------- #
+# Authentication
+# --------------------------------------------------------------------------- #
+# Off by default so a local checkout still runs with no configuration, and on in
+# the container, which is where the exposure actually is: every endpoint below
+# serves harvested contact data, so an unauthenticated deployment is a data leak
+# rather than merely an open API.
+AUTH_ENABLED: bool = _bool("MAILCRAWL_AUTH_ENABLED", False)
+AUTH_USERNAME: str = os.getenv("MAILCRAWL_USER", "")
+AUTH_PASSWORD: str = os.getenv("MAILCRAWL_PASSWORD", "")
+AUTH_REALM: str = os.getenv("MAILCRAWL_AUTH_REALM", "MailCrawl")
+
+# Left open so a container orchestrator can probe liveness without credentials.
+# It reports counts and the data directory, never scan content.
+AUTH_EXEMPT_PATHS: frozenset = frozenset({"/api/health"})
+
+
 # Each scan launches its own Chromium (src/crawler/crawler.py starts a PlaywrightFetcher
 # per crawl), so the browser is what caps concurrency here, not the event loop.
 MAX_CONCURRENT_SCANS: int = _int("MAX_CONCURRENT_SCANS", 1)
@@ -68,3 +89,27 @@ MAX_PAGE_SIZE: int = _int("MAX_PAGE_SIZE", 2000)
 
 # Grace period for in-flight scans to checkpoint themselves on server shutdown.
 SHUTDOWN_JOIN_SECONDS: float = _float("SHUTDOWN_JOIN_SECONDS", 30.0)
+
+
+# --------------------------------------------------------------------------- #
+# Batch jobs (file validation and SignalHire crawls)
+# --------------------------------------------------------------------------- #
+# These do not drive a browser like a scan does, so they are cheaper and the caps
+# are correspondingly looser — but they are not free: a validation holds every
+# result in memory and occupies a thread-pool slot per SMTP probe.
+MAX_CONCURRENT_VALIDATIONS: int = _int("MAX_CONCURRENT_VALIDATIONS", 3)
+MAX_CONCURRENT_SIGNALHIRE: int = _int("MAX_CONCURRENT_SIGNALHIRE", 3)
+
+# How long a finished batch job stays in memory. Results are written to disk when
+# the job ends, and both history endpoints fall back to disk, so eviction is
+# invisible to a client.
+BATCH_JOB_TTL_SECONDS: int = _int("BATCH_JOB_TTL_SECONDS", 3600)
+
+# Hard ceiling on an uploaded validation file. The body is read in chunks and
+# rejected the moment it crosses this, so an oversized upload never lands in
+# memory in full.
+MAX_UPLOAD_BYTES: int = _int("MAX_UPLOAD_MB", 50) * 1024 * 1024
+
+# Cap on a client-supplied export payload. /api/validate_export and
+# /api/signalhire/export build a workbook out of whatever they are sent.
+MAX_EXPORT_ROWS: int = _int("MAX_EXPORT_ROWS", 100_000)

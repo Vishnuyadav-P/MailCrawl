@@ -12,6 +12,13 @@ services:
       # Each scan drives its own Chromium, so the browser — not the event loop —
       # is what caps this. Raise it only alongside the memory limit below.
       MAX_CONCURRENT_SCANS: "${MAX_CONCURRENT_SCANS:-2}"
+      # On by default here, unlike a local checkout: a published port serving
+      # harvested contact data should never be anonymous. The server refuses to
+      # start if these two are empty, so this fails loudly rather than silently
+      # coming up unprotected.
+      MAILCRAWL_AUTH_ENABLED: "${MAILCRAWL_AUTH_ENABLED:-true}"
+      MAILCRAWL_USER: "${MAILCRAWL_USER:?set MAILCRAWL_USER in .env}"
+      MAILCRAWL_PASSWORD: "${MAILCRAWL_PASSWORD:?set MAILCRAWL_PASSWORD in .env}"
     volumes:
       # Scan log, saved results and checkpoints. Without this, an interrupted scan
       # is unresumable after a container restart.

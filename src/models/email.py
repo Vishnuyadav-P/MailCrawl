@@ -6,6 +6,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
+
 class EmailVerification(BaseModel):
     syntax_valid: bool = False
     domain_resolves: Optional[bool] = None

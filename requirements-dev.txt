@@ -1,0 +1,10 @@
+# Development and test tooling. Installs the runtime set too.
+#
+# The Docker build installs requirements.txt only, so nothing here reaches the
+# production image.
+
+-r requirements.txt
+
+pytest>=8.0,<10.0
+pytest-asyncio>=0.23,<2.0
+ruff>=0.6,<1.0

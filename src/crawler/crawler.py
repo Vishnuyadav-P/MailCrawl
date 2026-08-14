@@ -23,7 +23,7 @@ from src.extraction.pdf_extractor import extract_emails_from_pdf_bytes
 from src.models.email import EmailOccurrence
 from src.models.scan import ScanConfig, ScanError, ScanProgress, ScanStats
 from src.utils.config import Config
-from src.utils.logging import logger, create_scan_file_logger
+from src.utils.logging import create_scan_file_logger, logger
 from src.utils.scan_store import load_checkpoint, save_checkpoint
 from src.utils.urls import get_url_priority, normalize_domain_input
 from src.validation.domain_validator import validate_url_ssrf

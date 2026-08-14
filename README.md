@@ -65,8 +65,8 @@ docker compose up --build          # -> http://127.0.0.1:8000
 Or without compose:
 
 ```bash
-docker build -t domain-email-intelligence .
-docker run -p 8000:8000 -v scan-data:/data --shm-size=1g domain-email-intelligence
+docker build -t mailcrawl .
+docker run -p 8000:8000 -v scan-data:/data --shm-size=1g mailcrawl
 ```
 
 The image installs Chromium and its system libraries, runs as an unprivileged user,
@@ -74,12 +74,14 @@ and exposes `/api/health` for orchestrator health checks.
 
 **Four things a deployment must get right:**
 
-1. **Turn authentication on.** Every endpoint serves harvested contact data, so an
-   unauthenticated deployment is a data leak rather than merely an open API. Set
-   `MAILCRAWL_AUTH_ENABLED=true` with `MAILCRAWL_USER` and `MAILCRAWL_PASSWORD`; the
-   server refuses to start if it is enabled without both. The compose file enables it
-   by default and will not start without credentials in your `.env`. `/api/health`
-   stays open so an orchestrator can still probe liveness.
+1. **Decide who can reach the port.** Authentication is off by default everywhere,
+   including the compose file, so the container starts with no credentials and every
+   endpoint serves harvested contact data to anyone who can reach it — keep the
+   published port on a private network or behind a proxy that does its own access
+   control. To use the built-in HTTP Basic instead, set `MAILCRAWL_AUTH_ENABLED=true`
+   with `MAILCRAWL_USER` and `MAILCRAWL_PASSWORD` in your `.env`; the server refuses
+   to start if it is enabled without both, and `/api/health` stays open either way so
+   an orchestrator can still probe liveness.
 2. **One worker per container.** The job registry, SSE fan-out and live feed are
    per-process state. `--workers 2` would let a client's stream request land on a
    process that has never heard of their scan. Scale out with more containers behind
@@ -212,8 +214,8 @@ ruff check . --fix              # autofix
 1. **Authentication.** HTTP Basic over every route, `/docs` and the static UI, applied
    as middleware so a newly added route cannot miss it. Credentials are compared in
    constant time, and both halves are always compared so a wrong username is not
-   distinguishable from a wrong password by timing. Off by default for local work;
-   see the deployment notes above.
+   distinguishable from a wrong password by timing. Off by default everywhere,
+   including the compose file — it is opt-in; see the deployment notes above.
 2. **Strictly public data.** Paywalls, CAPTCHAs and authentication are never
    bypassed; a page behind a login wall is recorded as such and skipped.
 3. **robots.txt.** `Disallow` enforcement is a per-scan setting, but `Crawl-delay` is

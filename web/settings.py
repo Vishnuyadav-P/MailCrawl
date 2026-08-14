@@ -37,10 +37,11 @@ def _bool(name: str, default: bool) -> bool:
 # --------------------------------------------------------------------------- #
 # Authentication
 # --------------------------------------------------------------------------- #
-# Off by default so a local checkout still runs with no configuration, and on in
-# the container, which is where the exposure actually is: every endpoint below
-# serves harvested contact data, so an unauthenticated deployment is a data leak
-# rather than merely an open API.
+# Off by default everywhere, including the container: the server comes up with no
+# credentials and stays that way until this is set. It is worth setting for anything
+# reachable beyond localhost — every endpoint below serves harvested contact data,
+# so an exposed unauthenticated deployment is a data leak rather than merely an
+# open API.
 AUTH_ENABLED: bool = _bool("MAILCRAWL_AUTH_ENABLED", False)
 AUTH_USERNAME: str = os.getenv("MAILCRAWL_USER", "")
 AUTH_PASSWORD: str = os.getenv("MAILCRAWL_PASSWORD", "")
